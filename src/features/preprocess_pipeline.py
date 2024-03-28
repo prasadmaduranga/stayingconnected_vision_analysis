@@ -63,13 +63,13 @@ def update_session(db_util, session_type, session_number, user_id):
     return session_id
 
 # Update the recording table and return the recording_id
-def update_recording(db_util, task, date, time, flipped, session_id, file_name):
+def update_recording(db_util, task, hand, date, time, flipped, session_id, file_name):
     query = """
-    INSERT INTO VisionAnalysis.dbo.recording (task, [date], [time], flipped, session_id, file_name)
+    INSERT INTO VisionAnalysis.dbo.recording (task, hand, [date], [time], flipped, session_id, file_name)
     OUTPUT INSERTED.id
-    VALUES (?, ?, ?, ?, ?, ?);
+    VALUES (?,?, ?, ?, ?, ?, ?);
     """
-    params = (task, date, time, flipped, session_id, file_name)
+    params = (task,hand, date, time, flipped, session_id, file_name)
     recording_id = db_util.insert_data(query, params, return_id=True)
     return recording_id
 
@@ -100,7 +100,7 @@ if __name__ == '__main__':
             continue
 
         session_id = update_session(db_util, row['session_type'], row['session_number'], row['user_id'])
-        recording_id = update_recording(db_util, row['task'], row['date'], row['time'], False, session_id, row['file_name'])
+        recording_id = update_recording(db_util, row['task'], row['hand'], row['date'], row['time'], False, session_id, row['file_name'])
 
         # Assume each step below is critical and must succeed for the row to be considered successfully processed
         try:

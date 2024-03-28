@@ -8,10 +8,41 @@ Tools and framewords: viso.ai
 
 
 
-
-
-
-
 Features for our framework
 
 add tags for a video: 
+
+these are the feaures I need. Need more feaures n the future. but foor now create code fr only these features. 
+
+
+
+ # RIGHT_WRIST_SPEED
+ Speed of the RIGHT_WRIST landmark point. Compare two adjecent frames and get the eucledean distance. only consider x,y cooordinates 
+time bettween ttwo frame can be based on the frame rate.
+
+
+# RIGHT_ELBOW_SPEED
+# RIGHT_SHOULDER_SPEED
+
+# LEFT_WRIST_SPEED
+# LEFT_ELBOW_SPEED
+# LEFT_SHOULDER_SPEED
+
+# HAND_BOUNDING_BOX_IOU
+get the bounding box for left hand and right hand and left hand sperately. take the wrist and other joints of the palm n to consideration when defning the scope for the boundng box. then get the intersectoin over union value. 
+
+
+
+
+
+need to add feature called HAND_BOUNDING_BOX_IOU
+get the bounding box for left hand and right hand and left hand sperately. then get the intersectoin over union value. 
+
+steps tto follow for defining a bounding box for the hand
+for left hand: 
+ get the featured of the palm of that particular hand : Wrist, and all fingerr joints
+ consider their X,Y coordinates. out of the coordinates max X value, Max Y value, Min X value and min Y value. using these four values defin the four corners of bounding box
+
+ similarly derive a bounding box for other hand as well.
+
+ then calculate their interesection and union values in the carttesan plane. then calculate intersction over union 

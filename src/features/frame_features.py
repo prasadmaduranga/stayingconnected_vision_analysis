@@ -161,6 +161,45 @@ def calculate_features(df):
             speed_feature_name = f'{landmark}_SPEED'
             feature_df[speed_feature_name] = calculate_speed(df, landmark, frame_rate)
 
+        # 1. grip aperture (PGA) is the distance between the thumb and index finger
+        # Calculate grip aperture for each frame and for each hand and add it to the feature DataFrame
+
+        # 2. Wrist flexion / extension angle
+        # calculated by the angle between wrist elbow joint and wrist middle finger mcps
+        # Calculate wrist flexion/extension angle for each frame and each hand add it to the feature DataFrame
+
+        # 3. compensation > iou between hands
+
+
+        # 4. acceleration
+        # 5. distance traversed
+        #
+        # ====================
+        # 6. elbow flexion angle
+
+
+        # 7. forearm pronation
+
+
+
+        # 8. forearm supernation
+
+
+        # 9. Palmer arch angle (angle between palm and the forearm)
+
+
+        # 10. Shoulder flexion extension angle
+
+
+        # 11. Wrist flexion extension angle
+
+        # ====================
+        # ====================
+
+        # Object features
+        # 12. speed of object
+        # 13. trajectory deviation to the shortest path
+
         # This structure makes it easy to add more features to feature_df later
         feature_df['HAND_BOUNDING_BOX_IOU'] = calculate_hand_bounding_box_iou(df)
 

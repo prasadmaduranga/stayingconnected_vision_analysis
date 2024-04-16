@@ -62,3 +62,6 @@ class BodyLandmark(enum.IntEnum):
     RIGHT_PINKY_PIP = 54
     RIGHT_PINKY_DIP = 55
     RIGHT_PINKY_TIP = 56
+
+# export BodyLandmark
+

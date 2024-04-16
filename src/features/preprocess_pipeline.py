@@ -1,40 +1,3 @@
-# # read the data from video_recording_info excel file. load data in the sheet name 'video_recording_info' and store it in a dataframe.
-# # column names: user_id,	session_type,	session_number,	task,	date,	time,	file_name,	completed
-# # filter all the rows which aare ahveing 'completed' status as FASLE or null
-# # iterate through each row and get the video file path and the session number
-#
-# run steps 1 to 5 for each of the raw
-#
-# # step 1: update session table with the new data
-#
-# db table structure
-# INSERT INTO VisionAnalysis.dbo.[session]
-# (session_type, session_number, user_id)
-# VALUES('', 0, 0);
-# get the id of the [session] table entry which was just inserted and keep it (session_id)
-#
-#
-#
-# # step 2: update recording table with the new data
-# INSERT INTO VisionAnalysis.dbo.recording
-# (task, [date], [time], flipped, session_id, file_name)
-# VALUES('', '', '', 0, 0, '');
-#
-# get the the details from the excel sheet dataframe and the session_id froom step 1:
-# set flipped to FALSE
-# get the id of the [recording] table entry which was just inserted and keep it as recording_id
-#
-#
-# # setp 3: extract frame cooordinates > execute raw_coordinates.py
-# pass recording_id and video file_name as arguments . extract argument values from above data frames and saved values. pass fps as 10
-# get the return value aand savee it as frame_coordinate_id
-#
-# #sttep 4: extract frame features  > execute frame_features.py
-# pass frame_coordinate_id,recording_id  as argument.
-#
-#
-# # step 5: extract video features > execute video_features.py
-# pass frame_coordinate_id,recording_id  as argument.
 
 import pandas as pd
 import subprocess
@@ -42,12 +5,16 @@ import argparse
 import sys
 import os
 import re
+from tqdm import tqdm
 sys.path.append('../')
 from util import DatabaseUtil
 
+
 # Load the video recording info from an Excel file
 def load_video_recording_info(file_path):
-    df = pd.read_excel(file_path, sheet_name='video_recording_info')
+    with open(file_path, 'rb') as f:
+        df = pd.read_excel(f)
+    # df = pd.read_excel(file_path, sheet_name='video_recording_info',engine='openpyxl')
 
     return df
 
@@ -94,7 +61,7 @@ if __name__ == '__main__':
     video_info_df = load_video_recording_info(excel_file_path)
     successful_rows = []  # Initialize the list to track successful rows
 
-    for index, row in video_info_df.iterrows():
+    for index, row in tqdm(video_info_df.iterrows(), total=video_info_df.shape[0]):
 
         if not (pd.isna(row['completed']) or row['completed'] == False):
             continue

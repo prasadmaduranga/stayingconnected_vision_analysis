@@ -1,4 +1,6 @@
 
+import numpy as np
+
 
 def calculate_bbox(points):
     """
@@ -31,3 +33,40 @@ def bbox_iou(bbox1, bbox2):
     iou = inter_area / union_area if union_area else 0
 
     return iou
+
+def calculate_angle(p1, p2, p3):
+    """
+    Calculate the angle at p2 formed by the line segments p1-p2 and p2-p3 using the law of cosines.
+    """
+    a = np.linalg.norm(p3 - p2)
+    b = np.linalg.norm(p1 - p2)
+    c = np.linalg.norm(p1 - p3)
+    angle = np.arccos((b**2 + a**2 - c**2) / (2 * b * a))
+    return np.degrees(angle)
+
+def calculate_distance(p1, p2):
+    """Calculate the Euclidean distance between two points."""
+    return np.linalg.norm(p1 - p2)
+
+def calculate_object_center(x1, y1, x2, y2):
+    """Calculate the center of a bounding box."""
+    center_x = round((x1 + x2) / 2,4)
+    center_y = round((y1 + y2) / 2,4)
+    return center_x, center_y
+
+
+def calculate_line_equation(p1, p2):
+    """Calculate the slope (m) and y-intercept (b) of a line passing through points p1 and p2."""
+    m = (p2[1] - p1[1]) / (p2[0] - p1[0]) if p2[0] - p1[0] != 0 else 0
+    b = p1[1] - m * p1[0]
+    return m, b
+
+# Calculate the line equation for the shortest path
+def calculate_line_equation(p1, p2):
+    """Calculate the slope (m) and y-intercept (b) of a line passing through points p1 and p2."""
+    m = (p2[1] - p1[1]) / (p2[0] - p1[0]) if p2[0] - p1[0] != 0 else 0
+    b = p1[1] - m * p1[0]
+    return m, b
+
+
+

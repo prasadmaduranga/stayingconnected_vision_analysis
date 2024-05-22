@@ -28,11 +28,11 @@ def read_feature_file(frame_coordinate_id=None, recording_id=None):
 
     if frame_coordinate_id is not None:
         fetch_query += " AND frame_coordinate_id = ?"
-        query_params.append(frame_coordinate_id)
+        query_params.append(frame_coordinate_id[0])
 
     if recording_id is not None:
         fetch_query += " AND recording_id = ?"
-        query_params.append(recording_id)
+        query_params.append(recording_id[0])
 
     # Fetch the file name from the database
     file_name = db_util.fetch_data(fetch_query, tuple(query_params))

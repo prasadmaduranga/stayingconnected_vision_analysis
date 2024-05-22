@@ -1,4 +1,4 @@
-
+# -*- coding: utf-8 -*-
 import pandas as pd
 import subprocess
 import argparse
@@ -18,15 +18,37 @@ def load_video_recording_info(file_path):
 
     return df
 
-# Update the session table and return the session_id
+# # Update the session table and return the session_id
+# def update_session(db_util, session_type, session_number, user_id):
+#     query = """
+#     INSERT INTO VisionAnalysis.dbo.[session] (session_type, session_number, user_id)
+#     OUTPUT INSERTED.id
+#     VALUES (?, ?, ?);
+#     """
+#     params = (session_type, session_number, user_id)
+#     session_id = db_util.insert_data(query, params, return_id=True)
+#     return session_id
+
 def update_session(db_util, session_type, session_number, user_id):
-    query = """
+    # Check if the record already exists
+    check_query = """
+    SELECT id FROM VisionAnalysis.dbo.[session]
+    WHERE session_type = ? AND session_number = ? AND user_id = ?;
+    """
+    params = (session_type, session_number, user_id)
+    existing_records = db_util.fetch_data(check_query, params)
+
+    if existing_records:
+        # If record exists, return the existing session_id
+        return existing_records[0][0]
+
+    # If record does not exist, insert a new one
+    insert_query = """
     INSERT INTO VisionAnalysis.dbo.[session] (session_type, session_number, user_id)
     OUTPUT INSERTED.id
     VALUES (?, ?, ?);
     """
-    params = (session_type, session_number, user_id)
-    session_id = db_util.insert_data(query, params, return_id=True)
+    session_id = db_util.insert_data(insert_query, params, return_id=True)
     return session_id
 
 # Update the recording table and return the recording_id
@@ -66,8 +88,8 @@ if __name__ == '__main__':
         if not (pd.isna(row['completed']) or row['completed'] == False):
             continue
 
-        session_id = update_session(db_util, row['session_type'], row['session_number'], row['user_id'])
-        recording_id = update_recording(db_util, row['task'], row['hand'], row['date'], row['time'], False, session_id, row['file_name'])
+        session_id = update_session(db_util, row['session_type'], row['assessment_id'], row['participant_id'])
+        recording_id = update_recording(db_util, row['task_id'], row['hand'], row['date'], row['time'], False, session_id, row['file_name'])
 
         # Assume each step below is critical and must succeed for the row to be considered successfully processed
         try:
@@ -77,6 +99,7 @@ if __name__ == '__main__':
             execute_script('frame_features.py', ['--frame_coordinate_id', str(frame_coordinate_id)])
             # Step 5: Extract video features
             execute_script('video_features.py', ['--frame_coordinate_id', str(frame_coordinate_id)])
+            video_info_df.at[index, 'recording_id'] = recording_id
             successful_rows.append(index)  # Track this row as successfully processed
         except Exception as e:
             print(f"Error processing row {index}: {e}")

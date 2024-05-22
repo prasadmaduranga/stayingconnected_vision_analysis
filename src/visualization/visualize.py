@@ -12,6 +12,8 @@ sys.path.append('../')
 from util import read_feature_file
 
 from util import DatabaseUtil
+from IPython.display import display
+from tabulate import tabulate
 
 
 def smooth_data_moving_average(series, window_size=3):
@@ -38,7 +40,7 @@ def visualize_data(graphs):
             if param['participant'] is not None:
                 participant = param['participant']
 
-            data = read_feature_file(recording_id=recording_id)
+            data = read_feature_file(recording_id=[recording_id])
 
             if data is None or data.empty:
                 print(f"No data found for recording_id={recording_id}.")
@@ -1190,20 +1192,31 @@ def read_video_feature_data(recording_ids, metaData):
     """
     print(fetch_query);
     results = db_util.fetch_data(fetch_query)
-    results.shape
+    df_list = []
     # Convert results to DataFrame
-    df = pd.DataFrame(results, columns=['recording_id'] + columns)
+    print(results)
+    df = pd.DataFrame(columns=['recording_id'] + columns)
+
+    # Loop through the results and append each row to the DataFrame
+    for row in results:
+        row_df = pd.DataFrame([list(row)], columns=['recording_id'] + columns)
+        df_list.append(row_df)
+
+    #  if df list is empty return empty dataframe
+    if not df_list:
+        return pd.DataFrame()
+
+    df = pd.concat(df_list, ignore_index=True)
     return df
 
 
 def print_kinematic_stats():
     metaData = {
         'params': [
-            {'recording_id': 1016, 'hand': 'right', 'participant': '7002'},
-            {'recording_id': 1017, 'hand': 'right', 'participant': '7002'},
-            {'recording_id': 1018, 'hand': 'right', 'participant': '6001'},
+            {'recording_id': 2110, 'hand': 'right', 'participant': '7002'},
+            {'recording_id': 2111, 'hand': 'right', 'participant': '7002'},
         ],
-        'hand_specific_features': ['wrist_max_speed', 'wrist_number_of_velocity_peaks',
+        'hand_specific_features': ['wrist_number_of_velocity_peaks',
                                    'wrist_number_of_direction_changes', 'wrist_rate_of_direction_changes',
                                    'wrist_total_traversed_distance'],
         'general_features': ['total_trajectory_error', 'completion_time']
@@ -1212,19 +1225,49 @@ def print_kinematic_stats():
     recording_ids = [param['recording_id'] for param in metaData['params']]
     df = read_video_feature_data(recording_ids, metaData)
 
-    # Visualize the data
-    for index, row in df.iterrows():
-        plt.figure(figsize=(10, 5))
-        features = [f"{param['hand']}_{feature}".upper() for param in metaData['params'] for feature in
-                    metaData['hand_specific_features']] + metaData['general_features']
-        for feature in features:
+    # in df remove if aany duplicate column names aappar
+    df = df.loc[:, ~df.columns.duplicated()]
+
+    # Prepare the new DataFrame
+    new_columns = ['recording_id', 'hand', 'participant'] + \
+                  [f"{feature}".lower() for feature in metaData['hand_specific_features']] + \
+                  metaData['general_features']
+    new_df = pd.DataFrame(columns=new_columns)
+    new_df = new_df.loc[:, ~new_df.columns.duplicated()]
+    # Populate the new DataFrame
+    rows_list = []
+    for param in metaData['params']:
+        recording_id = param['recording_id']
+        hand = param['hand']
+        participant = param['participant']
+        row_data = {'recording_id': recording_id, 'hand': hand, 'participant': participant}
+        for feature in metaData['hand_specific_features']:
+            col_name = f"{hand}_{feature}".lower()
+            feature_name= f"{feature}".lower()
+            if col_name in df.columns:
+                row_data[feature_name] = df[df['recording_id'] == recording_id][col_name].values[0]
+        for feature in metaData['general_features']:
             if feature in df.columns:
-                plt.plot(df['recording_id'], df[feature], label=feature)
-        plt.title(f"Kinematic Stats for Recording ID {row['recording_id']}")
-        plt.xlabel('Recording ID')
-        plt.ylabel('Feature Values')
-        plt.legend()
-        plt.show()
+                row_data[feature] = df[df['recording_id'] == recording_id][feature].values[0]
+        rows_list.append(row_data)
+
+    new_df = pd.concat([new_df, pd.DataFrame(rows_list)], ignore_index=True)
+
+
+    # Display the new DataFrame
+    pd.set_option('display.max_columns', None)  # Ensure all columns are displayed
+    # display_dataframe_in_window(new_df)
+    # df.describe()
+    display(new_df)
+    print(tabulate(new_df, headers='keys', tablefmt='psql'))
+    # print(new_df)
+
+# def show_profile():
+
+# userid_assessmentid_taskid_affected
+
+
+
 
 if __name__ == "__main__":
     # recording id: 1062 , frame_coordinate_id: 1017 , file : 7002_right_drink.mp4
@@ -1232,7 +1275,7 @@ if __name__ == "__main__":
     # recording id: 1065 , frame_coordinate_id: 1020 , file : 6001_right_drink.mp4.mp4
 
     # visualise_speed_profile()
-    visualise_speed_profile_effected_vs_uneffected()
+    # visualise_speed_profile_effected_vs_uneffected()
     # visualise_speed_profile_healthy_vs_stroke()
     # visualise_speed_profile_vs_grip_aperture()
     # visualise_acceleration_profile()
@@ -1254,7 +1297,7 @@ if __name__ == "__main__":
     # visualise_hand_ious()
 
     # visualise_speed_distribution()
-    # print_kinematic_stats()
+    print_kinematic_stats()
 
 
 

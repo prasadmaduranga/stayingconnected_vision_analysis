@@ -197,8 +197,14 @@ def calculate_total_traversed_distance(group, column_name, frame_rate=10):
 
     # Smooth the speeds using Savitzky-Golay filter with window size 4
     # Ensure window size is appropriate for the length of data
-    window_length = 4 if len(valid_speeds) >= 4 else len(valid_speeds) | 1  # Ensure window length is odd
-    smoothed_speeds = savgol_filter(valid_speeds, window_length, 2) if len(valid_speeds) > 1 else valid_speeds
+    window_length = min(4, len(valid_speeds))
+    if window_length % 2 == 0:
+        window_length += 1  # Ensure window length is odd
+
+    if len(valid_speeds) > 1:
+        smoothed_speeds = savgol_filter(valid_speeds, window_length, 2)
+    else:
+        smoothed_speeds = valid_speeds
 
     # Calculate the distance for each frame and sum to get the total distance
     distances_per_frame = smoothed_speeds / frame_rate
@@ -330,8 +336,8 @@ def save_features_to_database(features_df, db_util):
     # Iterate over the DataFrame rows
     for index, row in features_df.iterrows():
         data_tuple = (
-            row['recording_id'],
             row['frame_coordinate_id'],
+            row['recording_id'],
             row['RIGHT_WRIST_SPEED_MAX'],
             row['LEFT_WRIST_SPEED_MAX'],
             row['RIGHT_WRIST_TIME_TO_PEAK_VELOCITY'], row['LEFT_WRIST_TIME_TO_PEAK_VELOCITY'],

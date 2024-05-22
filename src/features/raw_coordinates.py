@@ -29,11 +29,12 @@ from util import DatabaseUtil
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_holistic = mp.solutions.holistic
-interested_classes = ['person','cup','knife','fork','spoon']
+# interested_classes = ['person','cup','knife','fork','spoon']
+interested_classes = ['cup','knife','fork','spoon']
 global all_classes# 0 corresponds to person class in COCO dataset
 
 # Function to initialize Detectron2's predictor with the specified model
-def setup_detectron2(model_name="COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml", confidence_threshold=0.5):
+def setup_detectron2(model_name="COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml", confidence_threshold=0.2):
     global all_classes
     cfg = get_cfg()
     #set cfg.MODEL.DEVICE to 'cpu'
@@ -196,7 +197,19 @@ def normalize_objects(detected_objects, left_shoulder, right_shoulder,frame_widt
 
     return normalized_objects
 
+def drawMarkings(frame, left_shoulder, right_shoulder, detected_objects):
+    for landmark in [left_shoulder, right_shoulder]:
+        cv2.circle(frame, (int(landmark.x * frame.shape[1]), int(landmark.y * frame.shape[0])), 5,
+                   (0, 255, 0), -1)
 
+    for obj in detected_objects:
+        cv2.circle(frame, (int(obj[0]), int(obj[1])), 5, (255, 0, 0), -1)
+        cv2.circle(frame, (int(obj[2]), int(obj[3])), 5, (255, 0, 0), -1)
+        cv2.rectangle(frame, (int(obj[0]), int(obj[1])), (int(obj[2]), int(obj[3])), (255, 0, 0), 2)
+
+    cv2.imshow('Frame', frame)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        return True  # Break the loop if '
 
 def gendata(data_path, filename, desired_fps=10):
 
@@ -253,6 +266,13 @@ def gendata(data_path, filename, desired_fps=10):
 
                 # Collect landmarks without scaling
                 pose_landmarks = serialize_landmarks(results.pose_landmarks, results.left_hand_landmarks, results.right_hand_landmarks)
+                # if pose_landmarks is None: then appen none to all_pose_landmarks ,all_object_detections_1,all_object_detections_2 and continue
+                if pose_landmarks is None or len(pose_landmarks) == 0:
+                    all_pose_landmarks.append([None])
+                    all_object_detections_1.append([None])
+                    all_object_detections_2.append([None])
+                    frame_idx += 1
+                    continue
                 # Call to normalize_landmarks
                 pose_landmarks = normalize_landmarks(pose_landmarks)
 
@@ -281,10 +301,14 @@ def gendata(data_path, filename, desired_fps=10):
                     all_object_detections_1.append(normalized_objects[0])
                     all_object_detections_2.append(normalized_objects[1])
 
+                 # Display the current frame with landmarks DEBUG purpose only
+                # if drawMarkings(frame, left_shoulder, right_shoulder, detected_objects):
+                #     break
+
             frame_idx += 1
 
         cap.release()
-
+        cv2.destroyAllWindows()
     return {
         'pose_landmarks': all_pose_landmarks,
         'object_detections_1': all_object_detections_1,
@@ -307,7 +331,7 @@ def save_landmarks_to_db(recording_id, frame_rate, pose_landmarks, object_detect
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Video Data Processor with Custom Frame Rate for All Landmarks.')
-    parser.add_argument('--data_path', default='../../data/raw/test2',
+    parser.add_argument('--data_path', default='../../data/raw/task_recordings',
                         help='Path to the directory containing video files.')
     parser.add_argument('--file_name')
     parser.add_argument('--fps', default=10)

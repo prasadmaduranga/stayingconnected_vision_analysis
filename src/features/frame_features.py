@@ -384,6 +384,8 @@ def calculate_hand_object_iou(df):
     right_hand_iou = [None] * len(df)
 
     for i in range(len(df)):
+        if any(pd.isna(df.loc[i, ['object_1_x1', 'object_1_y1', 'object_1_x2', 'object_1_y2']])):
+            continue
         # Define bounding box for the object
         object_bbox = (df.loc[i, 'object_1_x1'], df.loc[i, 'object_1_y1'], df.loc[i, 'object_1_x2'], df.loc[i, 'object_1_y2'])
 
@@ -587,40 +589,166 @@ def smooth_data_moving_average(df, window_size=3):
 
     return smoothed_df
 
+# def write_features_to_db(df, db_util):
+#     """
+#     Writes the features from the DataFrame to the database, converting NaN values to NULL.
+#     """
+#     # Prepare the INSERT query template
+#     insert_query = """
+#     INSERT INTO VisionAnalysis.dbo.frame_features
+#     (id, frame_coordinate_id, frame_seq_number, recording_id, frame_rate, right_wrist_speed, right_elbow_speed, left_wrist_speed, left_elbow_speed, hand_bounding_box_iou)
+#     VALUES (NEWID(), ?, ?, ?, ?, ?, ?, ?, ?, ?);
+#     """
+#
+#     insert_query = """
+#        INSERT INTO VisionAnalysis.dbo.frame_features
+#        (id,frame_coordinate_id, recording_id, frame_rate, file_name)
+#        VALUES (NEWID(), ?, ?, ?, ?);
+#        """
+#
+#     # Iterate over the DataFrame rows
+#     for index, row in df.iterrows():
+#         # Prepare the parameters for the current row, replacing NaN with None
+#         params = (
+#             row['frame_coordinate_id'],
+#             row['frame_seq_number'],
+#             row['recording_id'],
+#             row['frame_rate'],
+#             None if pd.isna(row['RIGHT_WRIST_SPEED']) else row['RIGHT_WRIST_SPEED'],
+#             None if pd.isna(row['RIGHT_ELBOW_SPEED']) else row['RIGHT_ELBOW_SPEED'],
+#             None if pd.isna(row['LEFT_WRIST_SPEED']) else row['LEFT_WRIST_SPEED'],
+#             None if pd.isna(row['LEFT_ELBOW_SPEED']) else row['LEFT_ELBOW_SPEED'],
+#             None if pd.isna(row['HAND_BOUNDING_BOX_IOU']) else row['HAND_BOUNDING_BOX_IOU']
+#         )
+#
+#         # Execute the query with the current row's parameters
+#         db_util.insert_data(insert_query, params)
+
+import pandas as pd
+import pandas as pd
+
+import pandas as pd
+
 def write_features_to_db(df, db_util):
     """
     Writes the features from the DataFrame to the database, converting NaN values to NULL.
     """
     # Prepare the INSERT query template
     insert_query = """
-    INSERT INTO VisionAnalysis.dbo.frame_features
-    (id, frame_coordinate_id, frame_seq_number, recording_id, frame_rate, right_wrist_speed, right_elbow_speed, left_wrist_speed, left_elbow_speed, hand_bounding_box_iou)
-    VALUES (NEWID(), ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    INSERT INTO VisionAnalysis.dbo.frame_features (
+        id, frame_coordinate_id, frame_seq_number, recording_id, frame_rate, 
+        right_wrist_speed, right_wrist_acceleration, right_wrist_jerk, 
+        right_elbow_speed, right_elbow_acceleration, right_elbow_jerk, 
+        left_wrist_speed, left_wrist_acceleration, left_wrist_jerk, 
+        left_elbow_speed, left_elbow_acceleration, left_elbow_jerk, 
+        left_grip_aperture, right_grip_aperture, 
+        left_wrist_flexion_extension_angle, right_wrist_flexion_extension_angle, hand_bounding_box_iou, 
+        left_elbow_flexion_angle, right_elbow_flexion_angle, 
+        left_shoulder_abduction_angle, right_shoulder_abduction_angle, 
+        left_index_finger_angle_wrist_mcp_pip, right_index_finger_angle_wrist_mcp_pip, 
+        left_index_finger_angle_mcp_pip_dip, right_index_finger_angle_mcp_pip_dip, 
+        left_index_finger_angle_pip_dip_tip, right_index_finger_angle_pip_dip_tip, 
+        left_index_finger_angle_wrist_mcp_tip, right_index_finger_angle_wrist_mcp_tip, 
+        left_index_finger_ratio_mcp_tip_distal, right_index_finger_ratio_mcp_tip_distal, 
+        left_middle_finger_angle_wrist_mcp_pip, right_middle_finger_angle_wrist_mcp_pip, 
+        left_middle_finger_angle_mcp_pip_dip, right_middle_finger_angle_mcp_pip_dip, 
+        left_middle_finger_angle_pip_dip_tip, right_middle_finger_angle_pip_dip_tip, 
+        left_middle_finger_angle_wrist_mcp_tip, right_middle_finger_angle_wrist_mcp_tip, 
+        left_middle_finger_ratio_mcp_tip_distal, right_middle_finger_ratio_mcp_tip_distal, 
+        left_ring_finger_angle_wrist_mcp_pip, right_ring_finger_angle_wrist_mcp_pip, 
+        left_ring_finger_angle_mcp_pip_dip, right_ring_finger_angle_mcp_pip_dip, 
+        left_ring_finger_angle_pip_dip_tip, right_ring_finger_angle_pip_dip_tip, 
+        left_ring_finger_angle_wrist_mcp_tip, right_ring_finger_angle_wrist_mcp_tip, 
+        left_ring_finger_ratio_mcp_tip_distal, right_ring_finger_ratio_mcp_tip_distal, 
+        left_pinky_angle_wrist_mcp_pip, right_pinky_angle_wrist_mcp_pip, 
+        left_pinky_angle_mcp_pip_dip, right_pinky_angle_mcp_pip_dip, 
+        left_pinky_angle_pip_dip_tip, right_pinky_angle_pip_dip_tip, 
+        left_pinky_angle_wrist_mcp_tip, right_pinky_angle_wrist_mcp_tip, 
+        left_pinky_ratio_mcp_tip_distal, right_pinky_ratio_mcp_tip_distal, 
+        object_1_speed, object_2_speed, object_1_trajectory_deviation, 
+        object_1_left_hand_iou, object_1_right_hand_iou
+    ) VALUES (NEWID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     """
 
-    insert_query = """
-       INSERT INTO VisionAnalysis.dbo.frame_features
-       (id,frame_coordinate_id, recording_id, frame_rate, file_name)
-       VALUES (NEWID(), ?, ?, ?, ?);
-       """
-
-    # Iterate over the DataFrame rows
+    # Prepare a list of tuples for the batch insert
+    values = []
     for index, row in df.iterrows():
-        # Prepare the parameters for the current row, replacing NaN with None
         params = (
-            row['frame_coordinate_id'],
-            row['frame_seq_number'],
-            row['recording_id'],
-            row['frame_rate'],
+            None if pd.isna(row['frame_coordinate_id']) else row['frame_coordinate_id'],
+            None if pd.isna(row['frame_seq_number']) else row['frame_seq_number'],
+            None if pd.isna(row['recording_id']) else row['recording_id'],
+            None if pd.isna(row['frame_rate']) else row['frame_rate'],
             None if pd.isna(row['RIGHT_WRIST_SPEED']) else row['RIGHT_WRIST_SPEED'],
+            None if pd.isna(row['RIGHT_WRIST_ACCELERATION']) else row['RIGHT_WRIST_ACCELERATION'],
+            None if pd.isna(row['RIGHT_WRIST_JERK']) else row['RIGHT_WRIST_JERK'],
             None if pd.isna(row['RIGHT_ELBOW_SPEED']) else row['RIGHT_ELBOW_SPEED'],
+            None if pd.isna(row['RIGHT_ELBOW_ACCELERATION']) else row['RIGHT_ELBOW_ACCELERATION'],
+            None if pd.isna(row['RIGHT_ELBOW_JERK']) else row['RIGHT_ELBOW_JERK'],
             None if pd.isna(row['LEFT_WRIST_SPEED']) else row['LEFT_WRIST_SPEED'],
+            None if pd.isna(row['LEFT_WRIST_ACCELERATION']) else row['LEFT_WRIST_ACCELERATION'],
+            None if pd.isna(row['LEFT_WRIST_JERK']) else row['LEFT_WRIST_JERK'],
             None if pd.isna(row['LEFT_ELBOW_SPEED']) else row['LEFT_ELBOW_SPEED'],
-            None if pd.isna(row['HAND_BOUNDING_BOX_IOU']) else row['HAND_BOUNDING_BOX_IOU']
+            None if pd.isna(row['LEFT_ELBOW_ACCELERATION']) else row['LEFT_ELBOW_ACCELERATION'],
+            None if pd.isna(row['LEFT_ELBOW_JERK']) else row['LEFT_ELBOW_JERK'],
+            None if pd.isna(row['LEFT_GRIP_APERTURE']) else row['LEFT_GRIP_APERTURE'],
+            None if pd.isna(row['RIGHT_GRIP_APERTURE']) else row['RIGHT_GRIP_APERTURE'],
+            None if pd.isna(row['LEFT_WRIST_FLEXION_EXTENSION_ANGLE']) else row['LEFT_WRIST_FLEXION_EXTENSION_ANGLE'],
+            None if pd.isna(row['RIGHT_WRIST_FLEXION_EXTENSION_ANGLE']) else row['RIGHT_WRIST_FLEXION_EXTENSION_ANGLE'],
+            None if pd.isna(row['HAND_BOUNDING_BOX_IOU']) else row['HAND_BOUNDING_BOX_IOU'],
+            None if pd.isna(row['LEFT_ELBOW_FLEXION_ANGLE']) else row['LEFT_ELBOW_FLEXION_ANGLE'],
+            None if pd.isna(row['RIGHT_ELBOW_FLEXION_ANGLE']) else row['RIGHT_ELBOW_FLEXION_ANGLE'],
+            None if pd.isna(row['LEFT_SHOULDER_ABDUCTION_ANGLE']) else row['LEFT_SHOULDER_ABDUCTION_ANGLE'],
+            None if pd.isna(row['RIGHT_SHOULDER_ABDUCTION_ANGLE']) else row['RIGHT_SHOULDER_ABDUCTION_ANGLE'],
+            None if pd.isna(row['LEFT_INDEX_FINGER_ANGLE_WRIST_MCP_PIP']) else row['LEFT_INDEX_FINGER_ANGLE_WRIST_MCP_PIP'],
+            None if pd.isna(row['RIGHT_INDEX_FINGER_ANGLE_WRIST_MCP_PIP']) else row['RIGHT_INDEX_FINGER_ANGLE_WRIST_MCP_PIP'],
+            None if pd.isna(row['LEFT_INDEX_FINGER_ANGLE_MCP_PIP_DIP']) else row['LEFT_INDEX_FINGER_ANGLE_MCP_PIP_DIP'],
+            None if pd.isna(row['RIGHT_INDEX_FINGER_ANGLE_MCP_PIP_DIP']) else row['RIGHT_INDEX_FINGER_ANGLE_MCP_PIP_DIP'],
+            None if pd.isna(row['LEFT_INDEX_FINGER_ANGLE_PIP_DIP_TIP']) else row['LEFT_INDEX_FINGER_ANGLE_PIP_DIP_TIP'],
+            None if pd.isna(row['RIGHT_INDEX_FINGER_ANGLE_PIP_DIP_TIP']) else row['RIGHT_INDEX_FINGER_ANGLE_PIP_DIP_TIP'],
+            None if pd.isna(row['LEFT_INDEX_FINGER_ANGLE_WRIST_MCP_TIP']) else row['LEFT_INDEX_FINGER_ANGLE_WRIST_MCP_TIP'],
+            None if pd.isna(row['RIGHT_INDEX_FINGER_ANGLE_WRIST_MCP_TIP']) else row['RIGHT_INDEX_FINGER_ANGLE_WRIST_MCP_TIP'],
+            None if pd.isna(row['LEFT_INDEX_FINGER_RATIO_MCP_TIP_DISTAL']) else row['LEFT_INDEX_FINGER_RATIO_MCP_TIP_DISTAL'],
+            None if pd.isna(row['RIGHT_INDEX_FINGER_RATIO_MCP_TIP_DISTAL']) else row['RIGHT_INDEX_FINGER_RATIO_MCP_TIP_DISTAL'],
+            None if pd.isna(row['LEFT_MIDDLE_FINGER_ANGLE_WRIST_MCP_PIP']) else row['LEFT_MIDDLE_FINGER_ANGLE_WRIST_MCP_PIP'],
+            None if pd.isna(row['RIGHT_MIDDLE_FINGER_ANGLE_WRIST_MCP_PIP']) else row['RIGHT_MIDDLE_FINGER_ANGLE_WRIST_MCP_PIP'],
+            None if pd.isna(row['LEFT_MIDDLE_FINGER_ANGLE_MCP_PIP_DIP']) else row['LEFT_MIDDLE_FINGER_ANGLE_MCP_PIP_DIP'],
+            None if pd.isna(row['RIGHT_MIDDLE_FINGER_ANGLE_MCP_PIP_DIP']) else row['RIGHT_MIDDLE_FINGER_ANGLE_MCP_PIP_DIP'],
+            None if pd.isna(row['LEFT_MIDDLE_FINGER_ANGLE_PIP_DIP_TIP']) else row['LEFT_MIDDLE_FINGER_ANGLE_PIP_DIP_TIP'],
+            None if pd.isna(row['RIGHT_MIDDLE_FINGER_ANGLE_PIP_DIP_TIP']) else row['RIGHT_MIDDLE_FINGER_ANGLE_PIP_DIP_TIP'],
+            None if pd.isna(row['LEFT_MIDDLE_FINGER_ANGLE_WRIST_MCP_TIP']) else row['LEFT_MIDDLE_FINGER_ANGLE_WRIST_MCP_TIP'],
+            None if pd.isna(row['RIGHT_MIDDLE_FINGER_ANGLE_WRIST_MCP_TIP']) else row['RIGHT_MIDDLE_FINGER_ANGLE_WRIST_MCP_TIP'],
+            None if pd.isna(row['LEFT_MIDDLE_FINGER_RATIO_MCP_TIP_DISTAL']) else row['LEFT_MIDDLE_FINGER_RATIO_MCP_TIP_DISTAL'],
+            None if pd.isna(row['RIGHT_MIDDLE_FINGER_RATIO_MCP_TIP_DISTAL']) else row['RIGHT_MIDDLE_FINGER_RATIO_MCP_TIP_DISTAL'],
+            None if pd.isna(row['LEFT_RING_FINGER_ANGLE_WRIST_MCP_PIP']) else row['LEFT_RING_FINGER_ANGLE_WRIST_MCP_PIP'],
+            None if pd.isna(row['RIGHT_RING_FINGER_ANGLE_WRIST_MCP_PIP']) else row['RIGHT_RING_FINGER_ANGLE_WRIST_MCP_PIP'],
+            None if pd.isna(row['LEFT_RING_FINGER_ANGLE_MCP_PIP_DIP']) else row['LEFT_RING_FINGER_ANGLE_MCP_PIP_DIP'],
+            None if pd.isna(row['RIGHT_RING_FINGER_ANGLE_MCP_PIP_DIP']) else row['RIGHT_RING_FINGER_ANGLE_MCP_PIP_DIP'],
+            None if pd.isna(row['LEFT_RING_FINGER_ANGLE_PIP_DIP_TIP']) else row['LEFT_RING_FINGER_ANGLE_PIP_DIP_TIP'],
+            None if pd.isna(row['RIGHT_RING_FINGER_ANGLE_PIP_DIP_TIP']) else row['RIGHT_RING_FINGER_ANGLE_PIP_DIP_TIP'],
+            None if pd.isna(row['LEFT_RING_FINGER_ANGLE_WRIST_MCP_TIP']) else row['LEFT_RING_FINGER_ANGLE_WRIST_MCP_TIP'],
+            None if pd.isna(row['RIGHT_RING_FINGER_ANGLE_WRIST_MCP_TIP']) else row['RIGHT_RING_FINGER_ANGLE_WRIST_MCP_TIP'],
+            None if pd.isna(row['LEFT_RING_FINGER_RATIO_MCP_TIP_DISTAL']) else row['LEFT_RING_FINGER_RATIO_MCP_TIP_DISTAL'],
+            None if pd.isna(row['RIGHT_RING_FINGER_RATIO_MCP_TIP_DISTAL']) else row['RIGHT_RING_FINGER_RATIO_MCP_TIP_DISTAL'],
+            None if pd.isna(row['LEFT_PINKY_ANGLE_WRIST_MCP_PIP']) else row['LEFT_PINKY_ANGLE_WRIST_MCP_PIP'],
+            None if pd.isna(row['RIGHT_PINKY_ANGLE_WRIST_MCP_PIP']) else row['RIGHT_PINKY_ANGLE_WRIST_MCP_PIP'],
+            None if pd.isna(row['LEFT_PINKY_ANGLE_MCP_PIP_DIP']) else row['LEFT_PINKY_ANGLE_MCP_PIP_DIP'],
+            None if pd.isna(row['RIGHT_PINKY_ANGLE_MCP_PIP_DIP']) else row['RIGHT_PINKY_ANGLE_MCP_PIP_DIP'],
+            None if pd.isna(row['LEFT_PINKY_ANGLE_PIP_DIP_TIP']) else row['LEFT_PINKY_ANGLE_PIP_DIP_TIP'],
+            None if pd.isna(row['RIGHT_PINKY_ANGLE_PIP_DIP_TIP']) else row['RIGHT_PINKY_ANGLE_PIP_DIP_TIP'],
+            None if pd.isna(row['LEFT_PINKY_ANGLE_WRIST_MCP_TIP']) else row['LEFT_PINKY_ANGLE_WRIST_MCP_TIP'],
+            None if pd.isna(row['RIGHT_PINKY_ANGLE_WRIST_MCP_TIP']) else row['RIGHT_PINKY_ANGLE_WRIST_MCP_TIP'],
+            None if pd.isna(row['LEFT_PINKY_RATIO_MCP_TIP_DISTAL']) else row['LEFT_PINKY_RATIO_MCP_TIP_DISTAL'],
+            None if pd.isna(row['RIGHT_PINKY_RATIO_MCP_TIP_DISTAL']) else row['RIGHT_PINKY_RATIO_MCP_TIP_DISTAL'],
+            None if pd.isna(row['object_1_speed']) else row['object_1_speed'],
+            None if pd.isna(row['object_2_speed']) else row['object_2_speed'],
+            None if pd.isna(row['object_1_trajectory_deviation']) else row['object_1_trajectory_deviation'],
+            None if pd.isna(row['object_1_left_hand_iou']) else row['object_1_left_hand_iou'],
+            None if pd.isna(row['object_1_right_hand_iou']) else row['object_1_right_hand_iou']
         )
+        values.append(params)
 
-        # Execute the query with the current row's parameters
-        db_util.insert_data(insert_query, params)
+    # Execute batch insert
+    db_util.insert_batch(insert_query, values)
 
 
 def write_df_to_db_as_pickle(df, db_util):
@@ -711,11 +839,14 @@ if __name__ == '__main__':
     frame_coordinates_data = fetch_frame_coordinates(frame_coordinate_entry_ids)
 
     df = transform_data_to_dataframe(frame_coordinates_data)
-    print(df)
 
-    df_with_features = calculate_features(df)
+    try:
+        df_with_features = calculate_features(df)
+    except Exception as e:
+        print(f"Error occurred while calculating features: {e}")
 
-    # write_features_to_db(df_with_features, db_util)
+
+    write_features_to_db(df_with_features, db_util)
     write_df_to_db_as_pickle(df_with_features, db_util)
     # df2 = read_feature_file(1016, 1061, db_util, project_path)
     # print(df2)

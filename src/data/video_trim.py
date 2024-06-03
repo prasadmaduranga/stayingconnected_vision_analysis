@@ -39,7 +39,7 @@ def trim_video(input_file, start_time, end_time, output_file=None, output_folder
     return output_path
 
 def main():
-    meta_data_file_path = '../features/video_recording_info.xlsx'
+    meta_data_file_path = 'video_trim_timing_info.xlsx'
     sheet_name = 'task_timing_info'
 
     # Read data from Excel

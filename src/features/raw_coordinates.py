@@ -264,8 +264,11 @@ def gendata(data_path, filename, desired_fps=10):
             if frame_idx % frame_interval == 0:
                 results = holistic.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
+                left_hand_landmarks = results.right_hand_landmarks
+                right_hand_landmarks = results.left_hand_landmarks
+
                 # Collect landmarks without scaling
-                pose_landmarks = serialize_landmarks(results.pose_landmarks, results.left_hand_landmarks, results.right_hand_landmarks)
+                pose_landmarks = serialize_landmarks(results.pose_landmarks, left_hand_landmarks, right_hand_landmarks)
                 # if pose_landmarks is None: then appen none to all_pose_landmarks ,all_object_detections_1,all_object_detections_2 and continue
                 if pose_landmarks is None or len(pose_landmarks) == 0:
                     all_pose_landmarks.append([None])

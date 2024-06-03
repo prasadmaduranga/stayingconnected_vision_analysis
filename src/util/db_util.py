@@ -24,7 +24,7 @@ class DatabaseUtil:
                 f"UID={self.db_user};"
                 f"PWD={self.db_password}"
             )
-            print("Database connection successful.")
+            # print("Database connection successful.")
             return connection
         except Exception as e:
             print(f"Error connecting to database: {e}")
@@ -89,7 +89,17 @@ class DatabaseUtil:
             print(f"Error inserting data: {e}")
             return None
 
-
+    def insert_batch(self, query, params_list):
+        if self.connection is None:
+            self.attempt_reconnect()
+        """Inserts data into the database in batches using a parameterized query."""
+        try:
+            cursor = self.connection.cursor()
+            cursor.fast_executemany = True
+            cursor.executemany(query, params_list)
+            self.connection.commit()
+        except Exception as e:
+            print(f"Error executing batch insert: {e}")
 
 # Example usage
 if __name__ == "__main__":

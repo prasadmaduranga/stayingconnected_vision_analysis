@@ -54,4 +54,22 @@ Project Organization
 
 --------
 
+Data preparation
+------------
+Step 1: Trim video data
+
+Update task timing details in the video_trim_timing_info.xlsx file
+Execute video_trim.py script
+trimmed videos will be saved in the data/raw/task_recordings folder
+
+Step 2: Extract features 
+update meta info for eaach task recording clip in the video_recordings_info.xlsx file
+Execute preprocess_pipline.py script
+Extracted features will be saved in the DB
+
+
+visualisation
+------------
+
+
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>

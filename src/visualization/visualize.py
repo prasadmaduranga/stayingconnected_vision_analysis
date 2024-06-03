@@ -1,8 +1,6 @@
-import matplotlib.pyplot as plt
-import numpy as np
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 import sys
-import pickle
-import os
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,7 +12,7 @@ from util import read_feature_file
 from util import DatabaseUtil
 from IPython.display import display
 from tabulate import tabulate
-
+import textwrap
 
 def smooth_data_moving_average(series, window_size=3):
     return series.rolling(window=window_size, min_periods=1, center=True).mean()
@@ -27,11 +25,74 @@ def remove_outliers_and_interpolate(series, z_threshold=3,window_size=3):
     return interpolated_series
 
 
-def visualize_data(graphs):
-    plt.figure(figsize=(10, 6 * len(graphs)))
+# def visualize_data(graphs,distribution_boxplots=False):
+#     plt.figure(figsize=(10, 6 * len(graphs)))
+#
+#     for i, graph in enumerate(graphs, start=1):
+#         plt.subplot(len(graphs), 1, i)
+#
+#         for param in graph['params']:
+#             participant = ""
+#             recording_id = param['recording_id']
+#             feature = param['feature']
+#             if param['participant'] is not None:
+#                 participant = param['participant']
+#
+#             data = read_feature_file(recording_id=[recording_id])
+#
+#             if data is None or data.empty:
+#                 print(f"No data found for recording_id={recording_id}.")
+#                 continue
+#
+#             # Ensure the feature exists in the DataFrame
+#             if feature not in data.columns:
+#                 print(f"Feature {feature} not found in the dataset for recording_id={recording_id}.")
+#                 continue
+#
+#             # Select the feature and frame_seq_number for the x-axis
+#             data = data[['frame_seq_number', feature]]
+#             # get the mean and SD of the data[feature] and display n the side of the graph
+#             mean = data[feature].mean()
+#             std = data[feature].std()
+#
+#             # Interpolate missing values, remove outliers, and apply smoothing
+#             data[feature] = remove_outliers_and_interpolate(data[feature])
+#             data[feature] = smooth_data_moving_average(data[feature], window_size=graph.get('window_size', 4))
+#
+#             plt.plot(data['frame_seq_number'], data[feature], label=param['label'])
+#
+#             # plt.plot(data['frame_seq_number'], data[feature])
+#
+#
+#
+#
+#         plt.xlabel(graph.get('xlabel', 'Frame Sequence Number'))
+#         plt.ylabel(graph.get('ylabel', 'Value'))
+#         plt.title(graph.get('title', 'Data Visualization'))
+#         plt.legend()
+#
+#     plt.tight_layout()
+#     plt.show()
+def wrap_labels(labels, width=10):
+    """Wraps text labels to a specified width."""
+    return ['\n'.join(textwrap.wrap(label, width)) for label in labels]
+
+def visualize_data(graphs, distribution_boxplots=False):
+    num_graphs = len(graphs)
+    cols = 2 if distribution_boxplots else 1
+
+    plt.figure(figsize=(10 * cols, 6 * num_graphs))
+
+    participants = list(set(param.get('participant', '') for graph in graphs for param in graph['params']))
+    colors = plt.cm.tab20(np.linspace(0, 1, len(participants)))
+    participant_color_map = {participant: color for participant, color in zip(participants, colors)}
+
 
     for i, graph in enumerate(graphs, start=1):
-        plt.subplot(len(graphs), 1, i)
+        if distribution_boxplots:
+            plt.subplot(num_graphs, cols, 2 * i - 1)
+        else:
+            plt.subplot(num_graphs, cols, i)
 
         for param in graph['params']:
             participant = ""
@@ -60,20 +121,62 @@ def visualize_data(graphs):
             # Interpolate missing values, remove outliers, and apply smoothing
             data[feature] = remove_outliers_and_interpolate(data[feature])
             data[feature] = smooth_data_moving_average(data[feature], window_size=graph.get('window_size', 4))
-
-            plt.plot(data['frame_seq_number'], data[feature], label=f'{feature}_{participant}')
-            # plt.plot(data['frame_seq_number'], data[feature])
-
-
-
+            label = param.get('label', f"{participant}_{feature}")
+            plt.plot(data['frame_seq_number'], data[feature], label=label)
 
         plt.xlabel(graph.get('xlabel', 'Frame Sequence Number'))
         plt.ylabel(graph.get('ylabel', 'Value'))
         plt.title(graph.get('title', 'Data Visualization'))
-        plt.legend()
+        plt.legend(loc='upper right', bbox_to_anchor=(1.1, 1.05))
+
+        if distribution_boxplots:
+            plt.subplot(num_graphs, cols, 2 * i)
+            data_list = []
+            labels = []
+            colors_list = []
+
+            for param in graph['params']:
+                recording_id = param['recording_id']
+                feature = param['feature']
+                participant = param.get('participant', '')
+                label = param.get('label', '')
+
+                data = read_feature_file(recording_id=[recording_id])
+
+                if data is None or data.empty:
+                    print(f"No data found for recording_id={recording_id}.")
+                    continue
+
+                if feature not in data.columns:
+                    print(f"Feature {feature} not found in the dataset for recording_id={recording_id}.")
+                    continue
+
+                # Prepare the data for the box plot, removing outliers
+                series_data = data[feature].dropna()
+                clean_data = remove_outliers(series_data)
+                data_list.append(clean_data)
+                labels.append(label)
+                colors_list.append(participant_color_map[participant])
+
+            wrapped_labels = wrap_labels(labels, width=20)
+            bp = plt.boxplot(data_list, labels=wrapped_labels, vert=True, patch_artist=True, showmeans=True,
+                             boxprops={'alpha': 0.5, 'zorder': 0})
+
+
+            for box, color in zip(bp['boxes'], colors_list):
+                box.set_facecolor(color)
+
+            for j, data in enumerate(data_list):
+                x = np.random.normal(1 + j, 0.04, size=len(data))
+                plt.scatter(x, data, alpha=0.3, color='black', zorder=3, s=2)
+
+            plt.title(f'{graph.get("title", "Box Plot Visualization")}')
+            plt.xlabel(f'{graph.get("xlabel", "Parameters")}')
+            plt.ylabel(f'{graph.get("ylabel", "Values")}')
 
     plt.tight_layout()
     plt.show()
+
 
 
 def draw_fourier_transform(graphs):
@@ -85,7 +188,7 @@ def draw_fourier_transform(graphs):
         for param in graph['params']:
             recording_id = param['recording_id']
             feature = param['feature']
-            data = read_feature_file(recording_id=recording_id)
+            data = read_feature_file(recording_id=[recording_id])
 
             if data is None or data.empty:
                 print(f"No data found for recording_id={recording_id}.")
@@ -117,17 +220,29 @@ def draw_fourier_transform(graphs):
 
     plt.tight_layout()
     plt.show()
+#
+
 
 def draw_wavelet_transform(graphs):
-    plt.figure(figsize=(10, 6 * len(graphs)))
+    max_graphs_per_row = 4
+    num_graphs = len(graphs[0]['params'])
+    num_rows = (num_graphs + max_graphs_per_row - 1) // max_graphs_per_row  # Calculate the number of rows needed
 
-    for i, graph in enumerate(graphs, start=1):
-        plt.subplot(len(graphs), 1, i)
+    fig, axes = plt.subplots(num_rows, max_graphs_per_row, figsize=(10 * max_graphs_per_row, 6 * num_rows))
 
-        for param in graph['params']:
+    # Ensure axes is always a 2D array
+    if num_rows == 1:
+        axes = np.array([axes])  # Convert to 2D array with one row
+
+    axes = axes.flatten()  # Flatten the axes array for easy indexing
+
+    for i, graph in enumerate(graphs):
+        for j, param in enumerate(graph['params']):
+            ax = axes[j]
             recording_id = param['recording_id']
             feature = param['feature']
-            data = read_feature_file(recording_id=recording_id)
+            data = read_feature_file(recording_id=[recording_id])
+            title = param['label']
 
             if data is None or data.empty:
                 print(f"No data found for recording_id={recording_id}.")
@@ -140,9 +255,6 @@ def draw_wavelet_transform(graphs):
             # Prepare the signal
             signal = data[feature].dropna()
             signal = remove_outliers_and_interpolate(signal)
-            # signal = smooth_data_moving_average(signal, window_size=graph.get('window_size', 4))
-
-            # Convert pandas Series to numpy array
             signal_array = signal.to_numpy()
 
             # Define wavelet and scales
@@ -153,14 +265,63 @@ def draw_wavelet_transform(graphs):
             coefficients, frequencies = pywt.cwt(signal_array, scales, wavelet, 1.0 / 30.0)  # Assuming 30 fps as sampling rate
 
             # Plotting the wavelet transform
-            plt.imshow(np.abs(coefficients), extent=[0, len(signal_array), frequencies.min(), frequencies.max()], cmap='jet', aspect='auto', interpolation='nearest')
-            plt.colorbar(label='Magnitude')
-            plt.xlabel('Time')
-            plt.ylabel('Frequency (Hz)')
-            plt.title(f'{feature} - Wavelet Transform (Recording ID: {recording_id})')
+            cax = ax.imshow(np.abs(coefficients), extent=[0, len(signal_array), frequencies.min(), frequencies.max()], cmap='jet', aspect='auto', interpolation='nearest')
+            ax.set_xlabel('Time')
+            ax.set_ylabel('Frequency (Hz)')
+            ax.set_title(f'{feature} - {title}')
 
-        plt.tight_layout()
+            # Add colorbar to each subplot
+            fig.colorbar(cax, ax=ax, orientation='vertical', label='Magnitude')
+
+    # Hide any unused subplots
+    for k in range(num_graphs, len(axes)):
+        fig.delaxes(axes[k])
+
+    plt.tight_layout()
     plt.show()
+# def draw_wavelet_transform(graphs):
+#     plt.figure(figsize=(10, 6 * len(graphs)))
+#
+#     for i, graph in enumerate(graphs, start=1):
+#         plt.subplot(len(graphs), 1, i)
+#
+#         for param in graph['params']:
+#             recording_id = param['recording_id']
+#             feature = param['feature']
+#             data = read_feature_file(recording_id=[recording_id])
+#
+#             if data is None or data.empty:
+#                 print(f"No data found for recording_id={recording_id}.")
+#                 continue
+#
+#             if feature not in data.columns:
+#                 print(f"Feature {feature} not found in the dataset for recording_id={recording_id}.")
+#                 continue
+#
+#             # Prepare the signal
+#             signal = data[feature].dropna()
+#             signal = remove_outliers_and_interpolate(signal)
+#             # signal = smooth_data_moving_average(signal, window_size=graph.get('window_size', 4))
+#
+#             # Convert pandas Series to numpy array
+#             signal_array = signal.to_numpy()
+#
+#             # Define wavelet and scales
+#             scales = np.arange(1, 128)  # Adjust scale range as necessary for your data
+#             wavelet = 'cmor'  # Complex Morlet wavelet
+#
+#             # Perform the Continuous Wavelet Transform
+#             coefficients, frequencies = pywt.cwt(signal_array, scales, wavelet, 1.0 / 30.0)  # Assuming 30 fps as sampling rate
+#
+#             # Plotting the wavelet transform
+#             plt.imshow(np.abs(coefficients), extent=[0, len(signal_array), frequencies.min(), frequencies.max()], cmap='jet', aspect='auto', interpolation='nearest')
+#             plt.colorbar(label='Magnitude')
+#             plt.xlabel('Time')
+#             plt.ylabel('Frequency (Hz)')
+#             plt.title(f'{feature} - Wavelet Transform (Recording ID: {recording_id})')
+#
+#         plt.tight_layout()
+#     plt.show()
 
 def visualise_box_plot(graphs):
     num_graphs = len(graphs)
@@ -223,22 +384,94 @@ def visualise_box_plot(graphs):
 
     plt.tight_layout()
     plt.show()
+#
+# def visualize_data_polar_coordinates(graphs):
+#     plt.figure(figsize=(10, 6 * len(graphs)))
+#
+#     for i, graph in enumerate(graphs, start=1):
+#         ax = plt.subplot(len(graphs), 1, i, projection='polar')  # Set up polar plot
+#
+#         for param in graph['params']:
+#             participant = ""
+#             recording_id = param['recording_id']
+#             hand = param['hand']
+#             finger = param['finger']
+#             if param['participant'] is not None:
+#                 participant = param['participant']
+#
+#             data = read_feature_file(recording_id=[recording_id])
+#
+#             if data is None or data.empty:
+#                 print(f"No data found for recording_id={recording_id}.")
+#                 continue
+#
+#             # Construct dynamic feature names based on hand and finger
+#             ratio_feature = f"{hand}_{finger}_RATIO_MCP_TIP_DISTAL"
+#             angle_feature1 = f"{hand}_{finger}_ANGLE_WRIST_MCP_PIP"
+#             angle_feature2 = f"{hand}_{finger}_ANGLE_MCP_PIP_DIP"
+#             angle_feature3 = f"{hand}_{finger}_ANGLE_PIP_DIP_TIP"
+#             angle_wrist_mcp_tip = f"{hand}_{finger}_ANGLE_WRIST_MCP_TIP"
+#
+#
+#             # angle_feature1 = f"{hand}_{finger}_FINGER_ANGLE_MCP_PIP_DIP"
+#             # angle_feature2 = f"{hand}_{finger}_FINGER_ANGLE_WRIST_MCP_TIP"
+#             # angle_feature3 = f"{hand}_{finger}_FINGER_ANGLE_WRIST_MCP_TIP"
+#             # LEFT_INDEX_FINGER_ANGLE_WRIST_MCP_TIP
+#             #    LEFT_INDEX_FINGER_ANGLE_WRIST_MCP_PIP
+#             #     LEFT_INDEX_FINGER_ANGLE_MCP_PIP_DIP
+#             #     LEFT_INDEX_FINGER_ANGLE_PIP_DIP_TIP
+#             #     LEFT_INDEX_FINGER_ANGLE_WRIST_MCP_TIP
+#
+#             if not all(feature in data.columns for feature in [ratio_feature, angle_feature1, angle_feature2]):
+#                 print(f"Required features not found in the dataset for recording_id={recording_id}.")
+#                 continue
+#
+#             # Compute the theta as the sum of angles
+#             # data['theta'] = data[angle_feature1] + data[angle_feature2] + data[angle_feature3]
+#             data['theta'] = data[angle_wrist_mcp_tip] # Normalize to 0-360 degrees
+#
+#             # Interpolate missing values and remove outliers
+#             data[ratio_feature] = remove_outliers_and_interpolate(data[ratio_feature])
+#             data['theta'] = remove_outliers_and_interpolate(data['theta'])
+#             # Convert degrees to radians for plotting
+#             data['theta'] = np.deg2rad(data['theta'])
+#
+#             # Plot
+#             ax.scatter(data['theta'], data[ratio_feature], label=f'{hand}_{finger}_{participant}', s=12,alpha=0.7)
+#
+#         ax.set_title(graph.get('title', 'Polar Plot Visualization'))
+#         ax.set_xlabel('Theta (radians)')
+#         ax.set_ylabel('Radius')
+#         ax.legend()
+#
+#     plt.tight_layout()
+#     plt.show()
+
 
 def visualize_data_polar_coordinates(graphs):
-    plt.figure(figsize=(10, 6 * len(graphs)))
+    num_graphs = len(graphs)
+    cols = 4  # Number of columns (for four fingers)
+    rows = (num_graphs + cols - 1) // cols  # Calculate the number of rows needed
 
-    for i, graph in enumerate(graphs, start=1):
-        ax = plt.subplot(len(graphs), 1, i, projection='polar')  # Set up polar plot
+    plt.figure(figsize=(10 * cols, 6 * rows))  # Adjust the figure size to fit the number of subplots
 
-        for param in graph['params']:
-            participant = ""
+    for i, graph in enumerate(graphs):
+        # Set up the title for the group of four graphs
+        if i % cols == 0:
+            task_id = graph['params'][0]['recording_id']
+            session_number = graph['params'][0]['recording_id']
+            participant = graph['params'][0]['participant']
+            plt.suptitle(f'Task ID: {task_id}, Session Number: {session_number}, Participant: {participant}', y=1.02, fontsize=16)
+
+        for j, param in enumerate(graph['params']):
+            ax = plt.subplot(rows, cols, i * cols + j + 1, projection='polar')  # Set up polar plot
+
             recording_id = param['recording_id']
             hand = param['hand']
             finger = param['finger']
-            if param['participant'] is not None:
-                participant = param['participant']
+            participant = param.get('participant', '')
 
-            data = read_feature_file(recording_id=recording_id)
+            data = read_feature_file(recording_id=[recording_id])
 
             if data is None or data.empty:
                 print(f"No data found for recording_id={recording_id}.")
@@ -251,23 +484,12 @@ def visualize_data_polar_coordinates(graphs):
             angle_feature3 = f"{hand}_{finger}_ANGLE_PIP_DIP_TIP"
             angle_wrist_mcp_tip = f"{hand}_{finger}_ANGLE_WRIST_MCP_TIP"
 
-
-            # angle_feature1 = f"{hand}_{finger}_FINGER_ANGLE_MCP_PIP_DIP"
-            # angle_feature2 = f"{hand}_{finger}_FINGER_ANGLE_WRIST_MCP_TIP"
-            # angle_feature3 = f"{hand}_{finger}_FINGER_ANGLE_WRIST_MCP_TIP"
-            # LEFT_INDEX_FINGER_ANGLE_WRIST_MCP_TIP
-            #    LEFT_INDEX_FINGER_ANGLE_WRIST_MCP_PIP
-            #     LEFT_INDEX_FINGER_ANGLE_MCP_PIP_DIP
-            #     LEFT_INDEX_FINGER_ANGLE_PIP_DIP_TIP
-            #     LEFT_INDEX_FINGER_ANGLE_WRIST_MCP_TIP
-
             if not all(feature in data.columns for feature in [ratio_feature, angle_feature1, angle_feature2]):
                 print(f"Required features not found in the dataset for recording_id={recording_id}.")
                 continue
 
             # Compute the theta as the sum of angles
-            # data['theta'] = data[angle_feature1] + data[angle_feature2] + data[angle_feature3]
-            data['theta'] = data[angle_wrist_mcp_tip] # Normalize to 0-360 degrees
+            data['theta'] = data[angle_wrist_mcp_tip]  # Normalize to 0-360 degrees
 
             # Interpolate missing values and remove outliers
             data[ratio_feature] = remove_outliers_and_interpolate(data[ratio_feature])
@@ -276,15 +498,17 @@ def visualize_data_polar_coordinates(graphs):
             data['theta'] = np.deg2rad(data['theta'])
 
             # Plot
-            ax.scatter(data['theta'], data[ratio_feature], label=f'{hand}_{finger}_{participant}', s=12,alpha=0.7)
+            ax.scatter(data['theta'], data[ratio_feature], label=f'{hand}_{finger}_{participant}', s=12, alpha=0.7)
 
-        ax.set_title(graph.get('title', 'Polar Plot Visualization'))
-        ax.set_xlabel('Theta (radians)')
-        ax.set_ylabel('Radius')
-        ax.legend()
+            ax.set_title(f'{hand}_{finger}', fontsize=10)
+            ax.set_xlabel('Theta (radians)')
+            ax.set_ylabel('Radius')
+            ax.legend()
 
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0, 1, 0.96])  # Adjust the layout to fit the title
     plt.show()
+
+
 
 def visualize_data_with_dual_y_axis(graphs):
     plt.figure(figsize=(10, 6 * len(graphs)))
@@ -390,10 +614,18 @@ def visualise_speed_profile_effected_vs_uneffected():
     graphs = [
         {
             'params': [
-                {'recording_id': 1062, 'feature': 'RIGHT_ELBOW_SPEED', 'participant': '7002'},
-                # {'recording_id': 1063, 'feature': 'LEFT_ELBOW_SPEED', 'participant': '7002'},
+                # {'recording_id': 2171, 'feature': 'RIGHT_WRIST_SPEED', 'participant': '7002'},
+                # {'recording_id': 2171, 'feature': 'LEFT_WRIST_SPEED', 'participant': '7002'},
+                # {'recording_id': 2161, 'feature': 'RIGHT_WRIST_SPEED', 'participant': '7002'},
+                # {'recording_id': 2161, 'feature': 'LEFT_WRIST_SPEED', 'participant': '7002'},
+                # {'recording_id': 2169, 'feature': 'RIGHT_WRIST_SPEED', 'participant': '7002'},
+                # {'recording_id': 2169, 'feature': 'LEFT_WRIST_SPEED', 'participant': '7002'},
+                # {'recording_id': 2189, 'feature': 'RIGHT_WRIST_SPEED', 'participant': '7001'},
+                # {'recording_id': 2189, 'feature': 'LEFT_WRIST_SPEED', 'participant': '7001'},
+
                 # non effected hand of a stroke survivor
-                # {'recording_id': 1065, 'feature': 'RIGHT_ELBOW_SPEED', 'participant': '6001'}
+                {'recording_id': 3244, 'feature': 'RIGHT_WRIST_SPEED', 'participant': '6001'},
+                {'recording_id': 3244, 'feature': 'LEFT_WRIST_SPEED', 'participant': '6001'}
 
             ],
             'window_size': 4,
@@ -404,7 +636,7 @@ def visualise_speed_profile_effected_vs_uneffected():
         # Add more graph configurations if needed
     ]
     visualize_data(graphs)
-    draw_fourier_transform(graphs)
+    # draw_fourier_transform(graphs)
     draw_wavelet_transform(graphs)
 
 def visualise_speed_profile_healthy_vs_stroke():
@@ -1190,7 +1422,6 @@ def read_video_feature_data(recording_ids, metaData):
     SELECT recording_id, {', '.join(columns)} FROM VisionAnalysis.dbo.video_features
     WHERE recording_id IN ({recording_ids_str})
     """
-    print(fetch_query);
     results = db_util.fetch_data(fetch_query)
     df_list = []
     # Convert results to DataFrame
@@ -1210,22 +1441,11 @@ def read_video_feature_data(recording_ids, metaData):
     return df
 
 
-def print_kinematic_stats():
-    metaData = {
-        'params': [
-            {'recording_id': 2110, 'hand': 'right', 'participant': '7002'},
-            {'recording_id': 2111, 'hand': 'right', 'participant': '7002'},
-        ],
-        'hand_specific_features': ['wrist_number_of_velocity_peaks',
-                                   'wrist_number_of_direction_changes', 'wrist_rate_of_direction_changes',
-                                   'wrist_total_traversed_distance'],
-        'general_features': ['total_trajectory_error', 'completion_time']
-    }
-
+def print_kinematic_stats(metaData):
     recording_ids = [param['recording_id'] for param in metaData['params']]
     df = read_video_feature_data(recording_ids, metaData)
 
-    # in df remove if aany duplicate column names aappar
+    # in df remove if any duplicate column names appear
     df = df.loc[:, ~df.columns.duplicated()]
 
     # Prepare the new DataFrame
@@ -1243,24 +1463,81 @@ def print_kinematic_stats():
         row_data = {'recording_id': recording_id, 'hand': hand, 'participant': participant}
         for feature in metaData['hand_specific_features']:
             col_name = f"{hand}_{feature}".lower()
-            feature_name= f"{feature}".lower()
+            feature_name = f"{feature}".lower()
             if col_name in df.columns:
-                row_data[feature_name] = df[df['recording_id'] == recording_id][col_name].values[0]
+                feature_data = df[df['recording_id'] == recording_id][col_name]
+                if not feature_data.empty:
+                    row_data[feature_name] = feature_data.values[0]
+                else:
+                    row_data[feature_name] = None
         for feature in metaData['general_features']:
             if feature in df.columns:
-                row_data[feature] = df[df['recording_id'] == recording_id][feature].values[0]
+                feature_data = df[df['recording_id'] == recording_id][feature]
+                if not feature_data.empty:
+                    row_data[feature] = feature_data.values[0]
         rows_list.append(row_data)
 
     new_df = pd.concat([new_df, pd.DataFrame(rows_list)], ignore_index=True)
 
-
     # Display the new DataFrame
     pd.set_option('display.max_columns', None)  # Ensure all columns are displayed
-    # display_dataframe_in_window(new_df)
-    # df.describe()
-    display(new_df)
+    # display(new_df)
     print(tabulate(new_df, headers='keys', tablefmt='psql'))
     # print(new_df)
+
+
+#
+# def print_kinematic_stats():
+#     metaData = {
+#         'params': [
+#             {'recording_id': 2127, 'hand': 'right', 'participant': '7002'},
+#             {'recording_id': 2128, 'hand': 'right', 'participant': '7002'},
+#         ],
+#         'hand_specific_features': ['wrist_number_of_velocity_peaks',
+#                                    'wrist_number_of_direction_changes', 'wrist_rate_of_direction_changes',
+#                                    'wrist_total_traversed_distance'],
+#         'general_features': ['total_trajectory_error', 'completion_time']
+#     }
+#
+#     recording_ids = [param['recording_id'] for param in metaData['params']]
+#     df = read_video_feature_data(recording_ids, metaData)
+#
+#     # in df remove if aany duplicate column names aappar
+#     df = df.loc[:, ~df.columns.duplicated()]
+#
+#     # Prepare the new DataFrame
+#     new_columns = ['recording_id', 'hand', 'participant'] + \
+#                   [f"{feature}".lower() for feature in metaData['hand_specific_features']] + \
+#                   metaData['general_features']
+#     new_df = pd.DataFrame(columns=new_columns)
+#     new_df = new_df.loc[:, ~new_df.columns.duplicated()]
+#     # Populate the new DataFrame
+#     rows_list = []
+#     for param in metaData['params']:
+#         recording_id = param['recording_id']
+#         hand = param['hand']
+#         participant = param['participant']
+#         row_data = {'recording_id': recording_id, 'hand': hand, 'participant': participant}
+#         for feature in metaData['hand_specific_features']:
+#             col_name = f"{hand}_{feature}".lower()
+#             feature_name= f"{feature}".lower()
+#             if col_name in df.columns:
+#                 row_data[feature_name] = df[df['recording_id'] == recording_id][col_name].values[0]
+#         for feature in metaData['general_features']:
+#             if feature in df.columns:
+#                 row_data[feature] = df[df['recording_id'] == recording_id][feature].values[0]
+#         rows_list.append(row_data)
+#
+#     new_df = pd.concat([new_df, pd.DataFrame(rows_list)], ignore_index=True)
+#
+#
+#     # Display the new DataFrame
+#     pd.set_option('display.max_columns', None)  # Ensure all columns are displayed
+#     # display_dataframe_in_window(new_df)
+#     # df.describe()
+#     display(new_df)
+#     print(tabulate(new_df, headers='keys', tablefmt='psql'))
+#     # print(new_df)
 
 # def show_profile():
 
@@ -1275,7 +1552,7 @@ if __name__ == "__main__":
     # recording id: 1065 , frame_coordinate_id: 1020 , file : 6001_right_drink.mp4.mp4
 
     # visualise_speed_profile()
-    # visualise_speed_profile_effected_vs_uneffected()
+    visualise_speed_profile_effected_vs_uneffected()
     # visualise_speed_profile_healthy_vs_stroke()
     # visualise_speed_profile_vs_grip_aperture()
     # visualise_acceleration_profile()
@@ -1297,7 +1574,7 @@ if __name__ == "__main__":
     # visualise_hand_ious()
 
     # visualise_speed_distribution()
-    print_kinematic_stats()
+    # print_kinematic_stats()
 
 
 

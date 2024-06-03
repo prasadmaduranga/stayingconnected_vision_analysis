@@ -236,6 +236,10 @@ def calculate_features(df):
     Calculate high-level features from the DataFrame.
     """
     # Group by recording_id, frame_coordinate_id to process each video separately
+    # check df is not empty
+    if df is None or df.empty:
+        return pd.DataFrame()
+
     grouped = df.groupby(['recording_id', 'frame_coordinate_id'])
 
     default_frame_rate = 10
@@ -371,8 +375,10 @@ if __name__ == '__main__':
     # df = transform_data_to_dataframe(frame_feature_data)
     # frame_feature_data.columns = ['frame_coordinate_id', 'frame_seq_number', 'recording_id', 'frame_rate',
     features_df = calculate_features(frame_feature_data)
-    save_features_to_database(features_df, db_util)
-    print(features_df)
+    if not features_df.empty:
+        save_features_to_database(features_df, db_util)
+    else:
+        print('No features extracted')
 
 
 

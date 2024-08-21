@@ -224,7 +224,7 @@ def draw_fourier_transform(graphs):
 
 
 def draw_wavelet_transform(graphs):
-    max_graphs_per_row = 4
+    max_graphs_per_row = 5
     num_graphs = len(graphs[0]['params'])
     num_rows = (num_graphs + max_graphs_per_row - 1) // max_graphs_per_row  # Calculate the number of rows needed
 

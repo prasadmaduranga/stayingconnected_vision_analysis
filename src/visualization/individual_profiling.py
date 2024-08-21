@@ -188,7 +188,7 @@ if __name__ == "__main__":
 
     # Experiment 1:
     # 7001 , DW, , efffeced
-    # visualise_profile([2177,3197,3204,3211])
+    # visualise_profile([3263,3262])
 
     # T&CI600
     # Experiment 2:
@@ -197,7 +197,7 @@ if __name__ == "__main__":
     # 7002 , DW, , efffeced,unefffeced
     # visualise_profile([3252, 3261,3254, 3251,3260,3253])
     # 7001 , FPT, , efffeced,unefffeced
-    visualise_profile([3248,3200,3216])
+    # visualise_profile([3248,3200,3216])
 
 
     # 7002 , DW, , efffeced,unefffeced
@@ -208,7 +208,7 @@ if __name__ == "__main__":
     # visualise_profile([2175, 3197, 3220, 3228,3236])
     # Experiment 3:
     # all users , DW, , efffeced,unefffeced
-    # visualise_profile([3252, 3197, 3220, 3228, 3236 ,3251, 3196, 3219,3229,3235])
+    visualise_profile([3252, 3197, 3220, 3228, 3236 ,3251, 3196, 3219,3229,3235])
 
 
     # read_recording_metadata([1062, 1063, 1065])

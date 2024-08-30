@@ -13,6 +13,7 @@ from util import DatabaseUtil
 from IPython.display import display
 from tabulate import tabulate
 import textwrap
+import scipy.signal as signal
 
 def smooth_data_moving_average(series, window_size=3):
     return series.rolling(window=window_size, min_periods=1, center=True).mean()
@@ -115,6 +116,12 @@ def visualize_data(graphs, distribution_boxplots=False):
             # Select the feature and frame_seq_number for the x-axis
             data = data[['frame_seq_number', feature]]
             # get the mean and SD of the data[feature] and display n the side of the graph
+            spectral_entrpy = calculate_spectral_entropy(data[feature]) # lower spectral entropy indicates a smoother signal
+            wavelet_smoothness_index = calculate_wavelet_smoothness_index(data[feature]) # high wavelet_smoothness_index indicates a smoother signal
+            # print smmothness index
+            print(f"Smoothness Index - Spectral Entropy for {participant} {recording_id} {feature} is {spectral_entrpy}")
+            print(
+                f"Smoothness Index - wavelet_smoothness_index for {participant} {recording_id} {feature} is {wavelet_smoothness_index}")
             mean = data[feature].mean()
             std = data[feature].std()
 
@@ -224,7 +231,7 @@ def draw_fourier_transform(graphs):
 
 
 def draw_wavelet_transform(graphs):
-    max_graphs_per_row = 5
+    max_graphs_per_row = 2
     num_graphs = len(graphs[0]['params'])
     num_rows = (num_graphs + max_graphs_per_row - 1) // max_graphs_per_row  # Calculate the number of rows needed
 
@@ -578,6 +585,34 @@ def remove_outliers(data):
     return data[(data >= lower_bound) & (data <= upper_bound)]
 
 
+def calculate_spectral_entropy(time_series):
+    cleaned_time_series = time_series[~np.isnan(time_series)]
+    freqs, psd = signal.welch(cleaned_time_series)
+    psd_norm = psd / np.sum(psd)  # Normalize the power spectrum
+    spectral_entropy = -np.sum(psd_norm * np.log2(psd_norm))
+    return spectral_entropy
+
+
+def calculate_wavelet_smoothness_index(time_series, wavelet='db4'):
+    cleaned_time_series = time_series[~np.isnan(time_series)]
+
+    # Perform Discrete Wavelet Transform
+    coeffs = pywt.wavedec(cleaned_time_series, wavelet)
+
+    # Extract low-frequency coefficients (approximation coefficients)
+    approx_coeffs = coeffs[0]
+
+    # Calculate energy of approximation coefficients (low-frequency)
+    low_freq_energy = np.sum(np.square(approx_coeffs))
+
+    # Calculate total energy
+    total_energy = sum(np.sum(np.square(c)) for c in coeffs)
+
+    # Calculate smoothness index
+    smoothness_index = low_freq_energy / total_energy
+
+    return smoothness_index
+
 def visualise_wrist_speed_profile():
 
     graphs = [
@@ -624,13 +659,13 @@ def visualise_speed_profile_effected_vs_uneffected():
                 # {'recording_id': 2189, 'feature': 'LEFT_WRIST_SPEED', 'participant': '7001'},
 
                 # non effected hand of a stroke survivor
-                {'recording_id': 3244, 'feature': 'RIGHT_WRIST_SPEED', 'participant': '6001'},
-                {'recording_id': 3244, 'feature': 'LEFT_WRIST_SPEED', 'participant': '6001'}
+                {'recording_id': 3152, 'feature': 'RIGHT_WRIST_SPEED', 'participant': '7002'},
+                {'recording_id': 3151, 'feature': 'LEFT_WRIST_SPEED', 'participant': '7001'}
 
             ],
             'window_size': 4,
             'xlabel': 'Frame Sequence Number',
-            'ylabel': 'Smoothed Speed',
+            'ylabel': 'Wrist Speed',
             'title': 'Right and Left Wrist Speeds'
         }
         # Add more graph configurations if needed
@@ -1552,7 +1587,7 @@ if __name__ == "__main__":
     # recording id: 1065 , frame_coordinate_id: 1020 , file : 6001_right_drink.mp4.mp4
 
     # visualise_speed_profile()
-    visualise_speed_profile_effected_vs_uneffected()
+    # visualise_speed_profile_effected_vs_uneffected()
     # visualise_speed_profile_healthy_vs_stroke()
     # visualise_speed_profile_vs_grip_aperture()
     # visualise_acceleration_profile()
@@ -1566,7 +1601,7 @@ if __name__ == "__main__":
     # visualise_elbow_flexion_angle()
     # visualise_elbow_flexion_angle_vs_speed()
     #visualise_shoulder_abduction_angle() # left shoulder, right shoulder , right elbow anggle
-    # visulise_finger_density_function()
+    visulise_finger_density_function()
     # visualise_object_speed_profile()
     # visualise_object_tracjectory_deviation()
     # visualise_hand_object_iou()

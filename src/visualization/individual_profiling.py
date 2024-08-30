@@ -69,6 +69,7 @@ def visualise_profile(recording_ids,draw_wavelts=True):
     # ***** visualise features of the video in separate graphs *****
     features = ['WRIST_SPEED', 'GRIP_APERTURE', 'ELBOW_SPEED', 'WRIST_FLEXION_EXTENSION_ANGLE', 'ELBOW_FLEXION_ANGLE',
                 'SHOULDER_ABDUCTION_ANGLE']
+    # features = ['WRIST_SPEED']
     # hey value dictionary , key is the feature and value is the window_size for that feature
     feature_window_size = {
         'WRIST_SPEED': 4,
@@ -208,8 +209,9 @@ if __name__ == "__main__":
     # visualise_profile([2175, 3197, 3220, 3228,3236])
     # Experiment 3:
     # all users , DW, , efffeced,unefffeced
-    visualise_profile([3252, 3197, 3220, 3228, 3236 ,3251, 3196, 3219,3229,3235])
-
+    # visualise_profile([3263, 3252,3220,3228,3236])
+    visualise_profile([ 3252,3251])
+    # visualise_profile([3263,3262, 3252,3251, 3220,3219, 3228,3229,3236,3235])
 
     # read_recording_metadata([1062, 1063, 1065])
     #

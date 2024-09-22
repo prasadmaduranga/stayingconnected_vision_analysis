@@ -1,0 +1,17 @@
+output,label,hand,hit_count,x,y
+2,"['7002_A_E', '7002_A_S', '7103_A_E', '7103_A_P', '7103_A_P', '7105_A_P', '7107_A_P']","['affected', 'affected', 'affected', 'affected', 'affected', 'affected', 'affected']",7,0.0,1.0
+4,['7001_U_E'],['unaffected'],1,2.0,1.0
+7,"['7101_U_S', '7001_U_P', '7001_U_P', '7105_U_S', '7105_U_P', '7106_U_S', '7107_U_P']","['unaffected', 'unaffected', 'unaffected', 'unaffected', 'unaffected', 'unaffected', 'unaffected']",7,0.0,-1.0
+14,"['7103_U_P', '7105_U_P']","['unaffected', 'unaffected']",2,0.0,3.0
+17,"['7103_U_P', '7001_U_S']","['unaffected', 'unaffected']",2,-1.0,1.0
+21,['7002_U_S'],['unaffected'],1,3.0,2.0
+32,['7103_U_E'],['unaffected'],1,5.0,2.0
+34,['7002_U_E'],['unaffected'],1,-2.0,2.0
+40,"['7101_A_R', '7001_A_E', '7001_A_P']","['affected', 'affected', 'affected']",3,6.0,-1.0
+41,"['7001_A_S', '7001_A_P']","['affected', 'affected']",2,0.0,5.0
+47,['7101_A_S'],['affected'],1,4.0,-1.0
+49,"['7101_A_E', '7101_A_P', '7105_A_S', '7105_A_P', '7106_A_S']","['affected', 'affected', 'affected', 'affected', 'affected']",5,6.0,-2.0
+52,['7106_U_P'],['unaffected'],1,7.0,2.0
+53,"['7106_U_E', '7106_A_E', '7106_A_P']","['unaffected', 'affected', 'affected']",3,6.0,3.0
+58,['7101_U_R'],['unaffected'],1,-4.0,1.0
+59,['7101_U_P'],['unaffected'],1,-3.0,2.0

@@ -14,9 +14,12 @@ from body_landmarks import BodyLandmark
 import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
 
+from src.util.base_util import log_error
+
 sys.path.append('../')
 from util import DatabaseUtil
 from util.feature_util import *
+
 from util  import calculate_angle,calculate_bbox,bbox_iou,calculate_distance,calculate_object_center,calculate_line_equation
 import pandas as pd
 import numpy as np
@@ -27,27 +30,28 @@ project_path = '/Users/prasadmaduranga/higher_studies/research/Stroke research/P
 
 # HAND_BOUNDING_BOX_IOU
 
+
 def calculate_speed(df, landmark_name, frame_rate):
     """
     Calculate the speed of a landmark between consecutive frames.
     Speed is calculated as the Euclidean distance between the landmark positions in consecutive frames,
     divided by the time between frames, based on the frame rate.
     """
-    speeds = [None]*len(df)
+    speeds = [None] * len(df)
     for i in range(1, len(df)):
-        if df.iloc[i]['recording_id'] == df.iloc[i-1]['recording_id']:  # Ensure same recording
-            if pd.isna(df.iloc[i][f'{landmark_name}_X']) or pd.isna(df.iloc[i - 1][f'{landmark_name}_X']):
-                continue
+        try:
+            if df.iloc[i]['recording_id'] == df.iloc[i - 1]['recording_id']:  # Ensure same recording
+                if pd.isna(df.iloc[i][f'{landmark_name}_X']) or pd.isna(df.iloc[i - 1][f'{landmark_name}_X']):
+                    continue
 
-            dx = df.iloc[i][f'{landmark_name}_X'] - df.iloc[i-1][f'{landmark_name}_X']
-            dy = df.iloc[i][f'{landmark_name}_Y'] - df.iloc[i-1][f'{landmark_name}_Y']
-            distance = np.sqrt(dx**2 + dy**2)
-            time = 1 / frame_rate
-            speed = distance / time
-            #round speed to 4 decimal places
-            speeds[i] = round(speed, 4)
-
-    # Handle case of first frame in a recording
+                dx = df.iloc[i][f'{landmark_name}_X'] - df.iloc[i - 1][f'{landmark_name}_X']
+                dy = df.iloc[i][f'{landmark_name}_Y'] - df.iloc[i - 1][f'{landmark_name}_Y']
+                distance = np.sqrt(dx ** 2 + dy ** 2)
+                time = 1 / frame_rate
+                speed = distance / time
+                speeds[i] = round(speed, 4)
+        except Exception as e:
+            log_error('calculate_speed', f"Error at frame {i}: {str(e)}")
     return speeds
 
 def calculate_grip_aperture(df):
@@ -56,19 +60,20 @@ def calculate_grip_aperture(df):
     right_grip_apertures = [None] * len(df)
 
     for i in range(len(df)):
-        # Calculate PGA for the left hand
-        if pd.notna(df.loc[i, 'LEFT_THUMB_TIP_X']) and pd.notna(df.loc[i, 'LEFT_INDEX_FINGER_TIP_X']) and pd.notna(df.loc[i, 'LEFT_THUMB_TIP_Z']) and pd.notna(df.loc[i, 'LEFT_INDEX_FINGER_TIP_Z']):
-            left_thumb_x, left_thumb_y, left_thumb_z = df.loc[i, 'LEFT_THUMB_TIP_X'], df.loc[i, 'LEFT_THUMB_TIP_Y'], df.loc[i, 'LEFT_THUMB_TIP_Z']
-            left_index_x, left_index_y, left_index_z = df.loc[i, 'LEFT_INDEX_FINGER_TIP_X'], df.loc[i, 'LEFT_INDEX_FINGER_TIP_Y'], df.loc[i, 'LEFT_INDEX_FINGER_TIP_Z']
-            left_grip_apertures[i] = round(np.sqrt((left_thumb_x - left_index_x) ** 2 + (left_thumb_y - left_index_y) ** 2 + (left_thumb_z - left_index_z) ** 2), 4)
+        try:
+            # Calculate PGA for the left hand
+            if pd.notna(df.loc[i, 'LEFT_THUMB_TIP_X']) and pd.notna(df.loc[i, 'LEFT_INDEX_FINGER_TIP_X']):
+                left_thumb_x, left_thumb_y, left_thumb_z = df.loc[i, 'LEFT_THUMB_TIP_X'], df.loc[i, 'LEFT_THUMB_TIP_Y'], df.loc[i, 'LEFT_THUMB_TIP_Z']
+                left_index_x, left_index_y, left_index_z = df.loc[i, 'LEFT_INDEX_FINGER_TIP_X'], df.loc[i, 'LEFT_INDEX_FINGER_TIP_Y'], df.loc[i, 'LEFT_INDEX_FINGER_TIP_Z']
+                left_grip_apertures[i] = round(np.sqrt((left_thumb_x - left_index_x) ** 2 + (left_thumb_y - left_index_y) ** 2 + (left_thumb_z - left_index_z) ** 2), 4)
 
-        # Calculate PGA for the right hand
-        if pd.notna(df.loc[i, 'RIGHT_THUMB_TIP_X']) and pd.notna(df.loc[i, 'RIGHT_INDEX_FINGER_TIP_X']) and pd.notna(df.loc[i, 'RIGHT_THUMB_TIP_Z']) and pd.notna(df.loc[i, 'RIGHT_INDEX_FINGER_TIP_Z']):
-            right_thumb_x, right_thumb_y, right_thumb_z = df.loc[i, 'RIGHT_THUMB_TIP_X'], df.loc[i, 'RIGHT_THUMB_TIP_Y'], df.loc[i, 'RIGHT_THUMB_TIP_Z']
-            right_index_x, right_index_y, right_index_z = df.loc[i, 'RIGHT_INDEX_FINGER_TIP_X'], df.loc[i, 'RIGHT_INDEX_FINGER_TIP_Y'], df.loc[i, 'RIGHT_INDEX_FINGER_TIP_Z']
-            right_grip_apertures[i] = round(np.sqrt((right_thumb_x - right_index_x) ** 2 + (right_thumb_y - right_index_y) ** 2 + (right_thumb_z - right_index_z) ** 2),4)
-
-    # Return the calculated grip apertures as a dictionary
+            # Calculate PGA for the right hand
+            if pd.notna(df.loc[i, 'RIGHT_THUMB_TIP_X']) and pd.notna(df.loc[i, 'RIGHT_INDEX_FINGER_TIP_X']):
+                right_thumb_x, right_thumb_y, right_thumb_z = df.loc[i, 'RIGHT_THUMB_TIP_X'], df.loc[i, 'RIGHT_THUMB_TIP_Y'], df.loc[i, 'RIGHT_THUMB_TIP_Z']
+                right_index_x, right_index_y, right_index_z = df.loc[i, 'RIGHT_INDEX_FINGER_TIP_X'], df.loc[i, 'RIGHT_INDEX_FINGER_TIP_Y'], df.loc[i, 'RIGHT_INDEX_FINGER_TIP_Z']
+                right_grip_apertures[i] = round(np.sqrt((right_thumb_x - right_index_x) ** 2 + (right_thumb_y - right_index_y) ** 2 + (right_thumb_z - right_index_z) ** 2), 4)
+        except Exception as e:
+            log_error('calculate_grip_aperture', f"Error at frame {i}: {str(e)}")
     return {'LEFT_GRIP_APERTURE': left_grip_apertures, 'RIGHT_GRIP_APERTURE': right_grip_apertures}
 
 
@@ -77,20 +82,22 @@ def calculate_wrist_flexion_extension(df):
     right_wrist_angles = [None] * len(df)
 
     for i in range(len(df)):
-        # Check if the necessary coordinates are present for the left hand
-        if pd.notna(df.loc[i, 'LEFT_ELBOW_X']) and pd.notna(df.loc[i, 'LEFT_WRIST_X']) and pd.notna(df.loc[i, 'LEFT_MIDDLE_FINGER_MCP_X']):
-            elbow_left = np.array([df.loc[i, 'LEFT_ELBOW_X'], df.loc[i, 'LEFT_ELBOW_Y'], df.loc[i, 'LEFT_ELBOW_Z']])
-            wrist_left = np.array([df.loc[i, 'LEFT_WRIST_X'], df.loc[i, 'LEFT_WRIST_Y'], df.loc[i, 'LEFT_WRIST_Z']])
-            mcp_left = np.array([df.loc[i, 'LEFT_MIDDLE_FINGER_MCP_X'], df.loc[i, 'LEFT_MIDDLE_FINGER_MCP_Y'], df.loc[i, 'LEFT_MIDDLE_FINGER_MCP_Z']])
-            left_wrist_angles[i] = round(calculate_angle(elbow_left, wrist_left, mcp_left), 4)
+        try:
+            # Check if the necessary coordinates are present for the left hand
+            if pd.notna(df.loc[i, 'LEFT_ELBOW_X']) and pd.notna(df.loc[i, 'LEFT_WRIST_X']) and pd.notna(df.loc[i, 'LEFT_MIDDLE_FINGER_MCP_X']):
+                elbow_left = np.array([df.loc[i, 'LEFT_ELBOW_X'], df.loc[i, 'LEFT_ELBOW_Y'], df.loc[i, 'LEFT_ELBOW_Z']])
+                wrist_left = np.array([df.loc[i, 'LEFT_WRIST_X'], df.loc[i, 'LEFT_WRIST_Y'], df.loc[i, 'LEFT_WRIST_Z']])
+                mcp_left = np.array([df.loc[i, 'LEFT_MIDDLE_FINGER_MCP_X'], df.loc[i, 'LEFT_MIDDLE_FINGER_MCP_Y'], df.loc[i, 'LEFT_MIDDLE_FINGER_MCP_Z']])
+                left_wrist_angles[i] = round(calculate_angle(elbow_left, wrist_left, mcp_left), 4)
 
-        # Check if the necessary coordinates are present for the right hand
-        if pd.notna(df.loc[i, 'RIGHT_ELBOW_X']) and pd.notna(df.loc[i, 'RIGHT_WRIST_X']) and pd.notna(df.loc[i, 'RIGHT_MIDDLE_FINGER_MCP_X']):
-            elbow_right = np.array([df.loc[i, 'RIGHT_ELBOW_X'], df.loc[i, 'RIGHT_ELBOW_Y'], df.loc[i, 'RIGHT_ELBOW_Z']])
-            wrist_right = np.array([df.loc[i, 'RIGHT_WRIST_X'], df.loc[i, 'RIGHT_WRIST_Y'], df.loc[i, 'RIGHT_WRIST_Z']])
-            mcp_right = np.array([df.loc[i, 'RIGHT_MIDDLE_FINGER_MCP_X'], df.loc[i, 'RIGHT_MIDDLE_FINGER_MCP_Y'], df.loc[i, 'RIGHT_MIDDLE_FINGER_MCP_Z']])
-            right_wrist_angles[i] = round(calculate_angle(elbow_right, wrist_right, mcp_right), 4)
-
+            # Check if the necessary coordinates are present for the right hand
+            if pd.notna(df.loc[i, 'RIGHT_ELBOW_X']) and pd.notna(df.loc[i, 'RIGHT_WRIST_X']) and pd.notna(df.loc[i, 'RIGHT_MIDDLE_FINGER_MCP_X']):
+                elbow_right = np.array([df.loc[i, 'RIGHT_ELBOW_X'], df.loc[i, 'RIGHT_ELBOW_Y'], df.loc[i, 'RIGHT_ELBOW_Z']])
+                wrist_right = np.array([df.loc[i, 'RIGHT_WRIST_X'], df.loc[i, 'RIGHT_WRIST_Y'], df.loc[i, 'RIGHT_WRIST_Z']])
+                mcp_right = np.array([df.loc[i, 'RIGHT_MIDDLE_FINGER_MCP_X'], df.loc[i, 'RIGHT_MIDDLE_FINGER_MCP_Y'], df.loc[i, 'RIGHT_MIDDLE_FINGER_MCP_Z']])
+                right_wrist_angles[i] = round(calculate_angle(elbow_right, wrist_right, mcp_right), 4)
+        except Exception as e:
+            log_error('calculate_wrist_flexion_extension', f"Error at frame {i}: {str(e)}")
     return {'LEFT_WRIST_ANGLE': left_wrist_angles, 'RIGHT_WRIST_ANGLE': right_wrist_angles}
 
 def fetch_frame_coordinates(ids):
@@ -167,31 +174,33 @@ def calculate_hand_bounding_box_iou(df):
     iou_values = [None] * len(df)
 
     for i in range(len(df)):
-        # Define bounding boxes for left and right hands
-        # Assuming landmarks are numbered and correspond to specific fingers and the wrist
-        left_hand_points = [(df.iloc[i][f'LEFT_{landmark}_X'], df.iloc[i][f'LEFT_{landmark}_Y'])
-                            for landmark in
-                            ['WRIST', 'THUMB_TIP', 'INDEX_FINGER_TIP', 'MIDDLE_FINGER_TIP', 'RING_FINGER_TIP',
-                             'PINKY_TIP']
-                            if not pd.isna(df.iloc[i][f'LEFT_{landmark}_X'])]
+        try:
+            # Define bounding boxes for left and right hands
+            # Assuming landmarks are numbered and correspond to specific fingers and the wrist
+            left_hand_points = [(df.iloc[i][f'LEFT_{landmark}_X'], df.iloc[i][f'LEFT_{landmark}_Y'])
+                                for landmark in
+                                ['WRIST', 'THUMB_TIP', 'INDEX_FINGER_TIP', 'MIDDLE_FINGER_TIP', 'RING_FINGER_TIP',
+                                 'PINKY_TIP']
+                                if not pd.isna(df.iloc[i][f'LEFT_{landmark}_X'])]
 
-        right_hand_points = [(df.iloc[i][f'RIGHT_{landmark}_X'], df.iloc[i][f'RIGHT_{landmark}_Y'])
-                             for landmark in
-                             ['WRIST', 'THUMB_TIP', 'INDEX_FINGER_TIP', 'MIDDLE_FINGER_TIP', 'RING_FINGER_TIP',
-                              'PINKY_TIP']
-                             if not pd.isna(df.iloc[i][f'RIGHT_{landmark}_X'])]
+            right_hand_points = [(df.iloc[i][f'RIGHT_{landmark}_X'], df.iloc[i][f'RIGHT_{landmark}_Y'])
+                                 for landmark in
+                                 ['WRIST', 'THUMB_TIP', 'INDEX_FINGER_TIP', 'MIDDLE_FINGER_TIP', 'RING_FINGER_TIP',
+                                  'PINKY_TIP']
+                                 if not pd.isna(df.iloc[i][f'RIGHT_{landmark}_X'])]
 
-        if not left_hand_points or not right_hand_points:
-            iou_values[i] = 0  # No IOU calculation possible if any hand's points are missing
-            continue # Skip if any hand's points are missing
+            if not left_hand_points or not right_hand_points:
+                iou_values[i] = 0  # No IOU calculation possible if any hand's points are missing
+                continue # Skip if any hand's points are missing
 
-        # Calculate bounding boxes
-        left_hand_bbox = calculate_bbox(left_hand_points)
-        right_hand_bbox = calculate_bbox(right_hand_points)
+            # Calculate bounding boxes
+            left_hand_bbox = calculate_bbox(left_hand_points)
+            right_hand_bbox = calculate_bbox(right_hand_points)
 
-        # Calculate IOU
-        iou_values[i] = round(bbox_iou(left_hand_bbox, right_hand_bbox), 4)
-
+            # Calculate IOU
+            iou_values[i] = round(bbox_iou(left_hand_bbox, right_hand_bbox), 4)
+        except Exception as e:
+            log_error('calculate_hand_bounding_box_iou', f"{left_hand_points}, {right_hand_points} \n Error at index {i}: {str(e)}")
 
     return iou_values
 
@@ -203,11 +212,14 @@ def calculate_acceleration(speeds, frame_rate=10):
     """
     accelerations = [None]  # The first frame cannot have an acceleration value
     for i in range(1, len(speeds)):
-        if speeds[i] is not None and speeds[i-1] is not None:
-            accel = (speeds[i] - speeds[i-1]) * frame_rate
-            accelerations.append(round(accel, 4))
-        else:
-            accelerations.append(None)
+        try:
+            if speeds[i] is not None and speeds[i - 1] is not None:
+                accel = (speeds[i] - speeds[i - 1]) * frame_rate
+                accelerations.append(round(accel, 4))
+            else:
+                accelerations.append(None)
+        except Exception as e:
+            log_error('calculate_acceleration', f"Error at index {i}: {str(e)}")
     return accelerations
 
 
@@ -219,11 +231,14 @@ def calculate_jerk(accelerations, frame_rate=10):
     """
     jerks = [None, None]  # The first two frames cannot have a jerk value
     for i in range(2, len(accelerations)):
-        if accelerations[i] is not None and accelerations[i-1] is not None:
-            jerk = (accelerations[i] - accelerations[i-1]) * frame_rate
-            jerks.append(round(jerk, 4))
-        else:
-            jerks.append(None)
+        try:
+            if accelerations[i] is not None and accelerations[i-1] is not None:
+                jerk = (accelerations[i] - accelerations[i-1]) * frame_rate
+                jerks.append(round(jerk, 4))
+            else:
+                jerks.append(None)
+        except Exception as e:
+            log_error('calculate_jerk', f"Error at index {i}: {str(e)}")
     return jerks
 
 def calculate_elbow_flexion_angle(df):
@@ -284,25 +299,34 @@ def calculate_finger_features(df, hand_prefix):
     angles_wrist_mcp_tip = {finger: [None] * len(df) for finger in ['INDEX_FINGER', 'MIDDLE_FINGER', 'RING_FINGER', 'PINKY']}
     ratios_mcp_tip = {finger: [None] * len(df) for finger in ['INDEX_FINGER', 'MIDDLE_FINGER', 'RING_FINGER', 'PINKY']}
 
+
     for i in range(len(df)):
-        for finger in ['INDEX_FINGER', 'MIDDLE_FINGER', 'RING_FINGER', 'PINKY']:
-            # Construct joint names
-            wrist = np.array([df.loc[i, f'{hand_prefix}WRIST_X'], df.loc[i, f'{hand_prefix}WRIST_Y'], df.loc[i, f'{hand_prefix}WRIST_Z']])
-            mcp = np.array([df.loc[i, f'{hand_prefix}{finger}_MCP_X'], df.loc[i, f'{hand_prefix}{finger}_MCP_Y'], df.loc[i, f'{hand_prefix}{finger}_MCP_Z']])
-            pip = np.array([df.loc[i, f'{hand_prefix}{finger}_PIP_X'], df.loc[i, f'{hand_prefix}{finger}_PIP_Y'], df.loc[i, f'{hand_prefix}{finger}_PIP_Z']])
-            dip = np.array([df.loc[i, f'{hand_prefix}{finger}_DIP_X'], df.loc[i, f'{hand_prefix}{finger}_DIP_Y'], df.loc[i, f'{hand_prefix}{finger}_DIP_Z']])
-            tip = np.array([df.loc[i, f'{hand_prefix}{finger}_TIP_X'], df.loc[i, f'{hand_prefix}{finger}_TIP_Y'], df.loc[i, f'{hand_prefix}{finger}_TIP_Z']])
+        try:
+            for finger in ['INDEX_FINGER', 'MIDDLE_FINGER', 'RING_FINGER', 'PINKY']:
+                # Construct joint names
+                wrist = np.array([df.loc[i, f'{hand_prefix}WRIST_X'], df.loc[i, f'{hand_prefix}WRIST_Y'], df.loc[i, f'{hand_prefix}WRIST_Z']])
+                mcp = np.array([df.loc[i, f'{hand_prefix}{finger}_MCP_X'], df.loc[i, f'{hand_prefix}{finger}_MCP_Y'], df.loc[i, f'{hand_prefix}{finger}_MCP_Z']])
+                pip = np.array([df.loc[i, f'{hand_prefix}{finger}_PIP_X'], df.loc[i, f'{hand_prefix}{finger}_PIP_Y'], df.loc[i, f'{hand_prefix}{finger}_PIP_Z']])
+                dip = np.array([df.loc[i, f'{hand_prefix}{finger}_DIP_X'], df.loc[i, f'{hand_prefix}{finger}_DIP_Y'], df.loc[i, f'{hand_prefix}{finger}_DIP_Z']])
+                tip = np.array([df.loc[i, f'{hand_prefix}{finger}_TIP_X'], df.loc[i, f'{hand_prefix}{finger}_TIP_Y'], df.loc[i, f'{hand_prefix}{finger}_TIP_Z']])
 
-            # Calculate angles
-            angles_wrist_mcp_pip[finger][i] = calculate_angle(wrist, mcp, pip)
-            angles_mcp_pip_dip[finger][i] = calculate_angle(mcp, pip, dip)
-            angles_pip_dip_tip[finger][i] = calculate_angle(pip, dip, tip)
-            angles_wrist_mcp_tip[finger][i] = calculate_angle(wrist, mcp, tip)
+                # if any of the joints is missing, continue to next finger
+                if any(pd.isna(joint).any() for joint in [wrist, mcp, pip, dip, tip]):
+                    ratios_mcp_tip[finger][i] = None
+                    continue
 
-            # Calculate distances and ratio
-            dist_mcp_tip = calculate_distance(mcp, tip)
-            total_dist = calculate_distance(mcp, pip) + calculate_distance(pip, dip) + calculate_distance(dip, tip)
-            ratios_mcp_tip[finger][i] = dist_mcp_tip / total_dist if total_dist else None
+                # Calculate angles
+                angles_wrist_mcp_pip[finger][i] = calculate_angle(wrist, mcp, pip)
+                angles_mcp_pip_dip[finger][i] = calculate_angle(mcp, pip, dip)
+                angles_pip_dip_tip[finger][i] = calculate_angle(pip, dip, tip)
+                angles_wrist_mcp_tip[finger][i] = calculate_angle(wrist, mcp, tip)
+
+                # Calculate distances and ratio
+                dist_mcp_tip = calculate_distance(mcp, tip)
+                total_dist = calculate_distance(mcp, pip) + calculate_distance(pip, dip) + calculate_distance(dip, tip)
+                ratios_mcp_tip[finger][i] = dist_mcp_tip / total_dist if total_dist else None
+        except Exception as e:
+            log_error('calculate_finger_features', f"Error at frame {i}: {str(e)}")
 
     return angles_wrist_mcp_pip, angles_mcp_pip_dip, angles_pip_dip_tip, angles_wrist_mcp_tip, ratios_mcp_tip
 
@@ -360,6 +384,10 @@ def calculate_deviation_from_path(df, m, b):
     The object center is determined by the average of the bounding box's corner coordinates.
     """
     deviations = []
+
+    # if m or b of nan ,None or empty, return None
+    if pd.isna(m) or pd.isna(b) or not m or not b:
+        return [None]*len(df)
 
     for i in range(len(df)):
         # Calculate the center of the bounding box for the object in each frame
@@ -672,6 +700,12 @@ def write_features_to_db(df, db_util):
 
     # Prepare a list of tuples for the batch insert
     values = []
+    # if df is none , log it and return
+    if df is None:
+        print("Dataframe is None, skipping write features to db")
+        return
+
+
     for index, row in df.iterrows():
         params = (
             None if pd.isna(row['frame_coordinate_id']) else row['frame_coordinate_id'],
@@ -839,7 +873,7 @@ if __name__ == '__main__':
     frame_coordinates_data = fetch_frame_coordinates(frame_coordinate_entry_ids)
 
     df = transform_data_to_dataframe(frame_coordinates_data)
-
+    df_with_features = None
     try:
         df_with_features = calculate_features(df)
     except Exception as e:

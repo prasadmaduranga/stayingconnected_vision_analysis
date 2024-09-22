@@ -7,6 +7,7 @@ import sys
 import math
 import pandas as pd
 import numpy as np
+import logging
 from body_landmarks import BodyLandmark
 import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
@@ -16,6 +17,7 @@ from util import DatabaseUtil
 from util import read_feature_file
 from util.feature_util import *
 
+logging.basicConfig(filename='feature_calculation_errors.log', level=logging.ERROR)
 
 def smooth_data(data, window_length=5, polyorder=2):
     """
@@ -27,6 +29,8 @@ def smooth_data(data, window_length=5, polyorder=2):
         window_length = min(len(data), window_length)
         if window_length % 2 == 0:
             window_length += 1  # Make sure it's odd
+
+    polyorder = min(polyorder, window_length - 1)
 
     # Smooth the values using Savitzky-Golay filter
     if len(data) >= window_length:
@@ -73,43 +77,49 @@ def calculate_velocity_peaks(group, column_name, percentile=95, window_length=5,
     Calculate the number of velocity peaks for a given velocity column in uppercase,
     excluding None and NaN values, and smoothing the values to remove sudden spikes before calculating the percentile.
     """
-    # Ensure the column name is in uppercase to match the DataFrame
-    column_name = column_name.upper()
+    try:
+        # Ensure the column name is in uppercase to match the DataFrame
+        column_name = column_name.upper()
 
-    if column_name not in group.columns:
-        raise ValueError(f"Column {column_name} not found in the DataFrame")
+        if column_name not in group.columns:
+            raise ValueError(f"Column {column_name} not found in the DataFrame")
 
-    # Exclude None and NaN values
-    valid_values = group[column_name].dropna()
+        # Exclude None and NaN values
+        valid_values = group[column_name].dropna()
 
-    # Ensure window length is odd and not greater than the length of valid_values
-    if window_length > len(valid_values) or window_length % 2 == 0:
-        window_length = min(len(valid_values), window_length)
-        if window_length % 2 == 0:
-            window_length += 1  # Make sure it's odd
+        # Ensure window length is odd and not greater than the length of valid_values
+        if window_length > len(valid_values) or window_length % 2 == 0:
+            window_length = min(len(valid_values), window_length)
+            if window_length % 2 == 0:
+                window_length += 1  # Make sure it's odd
 
-    # Smooth the values using Savitzky-Golay filter to remove sudden spikes
-    # The filter might not be applied if valid_values is too short, check the length first
-    if len(valid_values) >= window_length:
-        smoothed_values = savgol_filter(valid_values, window_length, polyorder)
-    else:
-        smoothed_values = valid_values  # Fallback to original if not enough data
+        # Smooth the values using Savitzky-Golay filter to remove sudden spikes
+        # The filter might not be applied if valid_values is too short, check the length first
+        if len(valid_values) >= window_length:
+            smoothed_values = savgol_filter(valid_values, window_length, polyorder)
+        else:
+            smoothed_values = valid_values  # Fallback to original if not enough data
 
-    # Calculate the 80th percentile for the smoothed velocity column
-    threshold = np.percentile(smoothed_values, percentile)
+        # Calculate the percentile for the smoothed velocity column
+        threshold = np.percentile(smoothed_values, percentile)
 
-    # Identify regions where smoothed velocity is above the threshold
-    above_threshold = smoothed_values > threshold
+        # Identify regions where smoothed velocity is above the threshold
+        above_threshold = smoothed_values > threshold
 
-    # Since we filtered NaNs from valid_values and potentially applied smoothing, we need to align indices
-    # Create a series for above_threshold with group's index
-    above_threshold_series = pd.Series(above_threshold, index=valid_values.index)
+        # Create a series for above_threshold with group's index
+        above_threshold_series = pd.Series(above_threshold, index=valid_values.index)
 
-    # Count transitions from below to above threshold as the start of a new peak
-    peak_starts = (above_threshold_series.shift(1, fill_value=above_threshold_series.iloc[
-        0]) < above_threshold_series).sum()
+        # Count transitions from below to above threshold as the start of a new peak
+        peak_starts = (above_threshold_series.shift(1, fill_value=above_threshold_series.iloc[
+            0]) < above_threshold_series).sum()
 
-    return peak_starts
+        return peak_starts
+
+    except Exception as e:
+        # Return None if any exception occurs
+        print(f"An error occurred: {e}")
+        return None
+
 
 
 def calculate_direction_changes(group, column_name):
@@ -122,10 +132,25 @@ def calculate_direction_changes(group, column_name):
         raise ValueError(f"Column {column_name} not found in the DataFrame")
 
     valid_speeds = group[column_name].dropna()
+
+    # Check if there are enough values to calculate gradient
+    if len(valid_speeds) < 3:  # np.gradient requires at least 3 points for edge_order=1
+        return 0  # Return 0 direction changes if insufficient data
+
+    # Smooth the speed values
     smoothed_speeds = smooth_data(valid_speeds)
+
+    # Calculate the acceleration
     acceleration = np.gradient(smoothed_speeds)
-    # jerk = np.gradient(acceleration)
+
+    # Check if acceleration array has enough data to calculate jerk
+    if len(acceleration) < 3:
+        return 0  # Return 0 if the acceleration array is too small
+
+    # Calculate the sign changes (which indicate direction changes)
     sign_changes = np.diff(np.sign(acceleration))
+
+    # Count the number of zero crossings
     zero_crossings = np.where(sign_changes != 0)[0]
     number_of_direction_changes = len(zero_crossings)
 
@@ -161,8 +186,13 @@ def calculate_speed_metrics(group, column_name, frame_rate):
     if column_name not in group.columns:
         raise ValueError(f"Column {column_name} not found in the DataFrame")
 
+
     # Smooth the speed data
     valid_speeds = group[column_name].dropna()
+
+    if valid_speeds.empty or valid_speeds.eq(0).all():
+        return None, None, None, None, None, None, None
+
     smoothed_speeds = smooth_data(valid_speeds)
 
     # Calculate metrics
@@ -226,6 +256,10 @@ def calculate_total_trajectory_error(group, column_name):
     # Replace NaN values with the nearest non-null value using forward-fill and back-fill
     valid_values = group[column_name].fillna(method='ffill').fillna(method='bfill')
 
+    #  if all values are NaN, return None
+    if valid_values.isnull().all():
+        return None
+
     # Accumulate the total trajectory error
     total_trajectory_error = valid_values.sum()
 
@@ -248,68 +282,72 @@ def calculate_features(df):
     video_features = []
 
     for (recording_id, frame_coordinate_id), group in grouped:
-        # Initialize a dictionary to store the features for the current group
-        features = {
-            'recording_id': recording_id,
-            'frame_coordinate_id': frame_coordinate_id,
-        }
+        try:
+            # Initialize a dictionary to store the features for the current group
+            features = {
+                'recording_id': recording_id,
+                'frame_coordinate_id': frame_coordinate_id,
+            }
 
-        # Calculate each high-level feature and add it to the features dictionary
-        features['RIGHT_WRIST_SPEED_MAX'] = calculate_max_speed(group, 'RIGHT_WRIST_SPEED')
-        features['LEFT_WRIST_SPEED_MAX'] = calculate_max_speed(group, 'LEFT_WRIST_SPEED')
+            # Calculate each high-level feature and add it to the features dictionary
+            features['RIGHT_WRIST_SPEED_MAX'] = calculate_max_speed(group, 'RIGHT_WRIST_SPEED')
+            features['LEFT_WRIST_SPEED_MAX'] = calculate_max_speed(group, 'LEFT_WRIST_SPEED')
 
-        # 1. number of velocity peaks
-        #  get the RIGHT_WRIST_SPEED  colums get the velocity distribution over the time. and get the 80% percentile and identify the discrete number of regions where the velocity is above the 80% percentile.
-        #  these are know as the velocity peaks.
-        #  calculate for both right and left wrist and add to features dictionary. 'RIGHT_WRIST_numnber_of_velocity_peaks' and 'LEFT_WRIST_numnber_of_velocity_peaks' and 'RIGHT_WRIST_numnber_of_velocity_peaks'
-        features['RIGHT_WRIST_NUMBER_OF_VELOCITY_PEAKS'] = calculate_velocity_peaks(group, 'RIGHT_WRIST_SPEED')
-        features['LEFT_WRIST_NUMBER_OF_VELOCITY_PEAKS'] = calculate_velocity_peaks(group, 'LEFT_WRIST_SPEED')
-
-
-        # 2. number of direction changes (Number of acceleration zero crossings )
-        #  get the RIGHT_WRIST_SPEED and first smooth it as in the prevoiouse step. then calculate the acceleration. then get the rate of acceleratioon. (JERK)  then get the accellaton zero crossings. add to features dictionary. and 'LEFT_WRIST_numnber_of_direction_changes' and 'RIGHT_WRIST_numnber_of_direction_changes'
-        # do for both right and left wrist
-        features['RIGHT_WRIST_NUMBER_OF_DIRECTION_CHANGES'] = calculate_direction_changes(group, 'RIGHT_WRIST_SPEED')
-        features['LEFT_WRIST_NUMBER_OF_DIRECTION_CHANGES'] = calculate_direction_changes(group, 'LEFT_WRIST_SPEED')
-
-        # 3. ratet of direction changes (per second)
-        # get the RIGHT_WRIST_JERK column and get the zero crossings. divide by the total time of the video. add to features dictionary. 'RIGHT_WRIST_rate_of_direction_changes' and 'LEFT_WRIST_rate_of_direction_changes' and 'RIGHT_WRIST_rate_of_direction_changes'
-        features['RIGHT_WRIST_RATE_OF_DIRECTION_CHANGES'] = calculate_direction_changes_rate(group, 'RIGHT_WRIST_SPEED', frame_rate)
-        features['LEFT_WRIST_RATE_OF_DIRECTION_CHANGES'] = calculate_direction_changes_rate(group, 'LEFT_WRIST_SPEED', frame_rate)
-
-        # 4. completion time
-        # get the completion time by refering to the number of frames (number of rows) and the frame rate
-        features['COMPLETION_TIME'] = calculate_completion_time(group, frame_rate)
-
-        # 5. peak speed/ AVG speed/ std/ q1,q2,q3/ time to peak velocity
-        # get the RIGHT_WRIST_SPEED column and get the max speed, avg speed, std, q1,q2,q3, time to peak velocity measaures and update the features dictionary.
-        #  do for both right and left wrist
-        # Calculate speed metrics for right and left wrists
-        metrics_right = calculate_speed_metrics(group, 'RIGHT_WRIST_SPEED', frame_rate)
-        metrics_left = calculate_speed_metrics(group, 'LEFT_WRIST_SPEED', frame_rate)
-
-        # Unpack metrics into features dictionary
-        (features['RIGHT_WRIST_MAX_SPEED'], features['RIGHT_WRIST_AVG_SPEED'], features['RIGHT_WRIST_STD_SPEED'],
-         features['RIGHT_WRIST_Q1_SPEED'], features['RIGHT_WRIST_Q2_SPEED'], features['RIGHT_WRIST_Q3_SPEED'],
-         features['RIGHT_WRIST_TIME_TO_PEAK_VELOCITY']) = metrics_right
-
-        (features['LEFT_WRIST_MAX_SPEED'], features['LEFT_WRIST_AVG_SPEED'], features['LEFT_WRIST_STD_SPEED'],
-         features['LEFT_WRIST_Q1_SPEED'], features['LEFT_WRIST_Q2_SPEED'], features['LEFT_WRIST_Q3_SPEED'],
-         features['LEFT_WRIST_TIME_TO_PEAK_VELOCITY']) = metrics_left
+            # 1. number of velocity peaks
+            #  get the RIGHT_WRIST_SPEED  colums get the velocity distribution over the time. and get the 80% percentile and identify the discrete number of regions where the velocity is above the 80% percentile.
+            #  these are know as the velocity peaks.
+            #  calculate for both right and left wrist and add to features dictionary. 'RIGHT_WRIST_numnber_of_velocity_peaks' and 'LEFT_WRIST_numnber_of_velocity_peaks' and 'RIGHT_WRIST_numnber_of_velocity_peaks'
+            features['RIGHT_WRIST_NUMBER_OF_VELOCITY_PEAKS'] = calculate_velocity_peaks(group, 'RIGHT_WRIST_SPEED')
+            features['LEFT_WRIST_NUMBER_OF_VELOCITY_PEAKS'] = calculate_velocity_peaks(group, 'LEFT_WRIST_SPEED')
 
 
-        #  6. total traversed distance
-        # refer to the 'RIGHT_WRIST_SPEED' column aand referring too the frame rate get the distaance. get the toal traveresed idstnaace over the time.
-        # add to the feature dictionary as 'RIGHT_WRIST_TOTAL_TRAVERSED_DISTANCE'
-        features['RIGHT_WRIST_TOTAL_TRAVERSED_DISTANCE'] = calculate_total_traversed_distance(group,'RIGHT_WRIST_SPEED',frame_rate)
-        features['LEFT_WRIST_TOTAL_TRAVERSED_DISTANCE'] = calculate_total_traversed_distance(group,'LEFT_WRIST_SPEED',frame_rate)
+            # 2. number of direction changes (Number of acceleration zero crossings )
+            #  get the RIGHT_WRIST_SPEED and first smooth it as in the prevoiouse step. then calculate the acceleration. then get the rate of acceleratioon. (JERK)  then get the accellaton zero crossings. add to features dictionary. and 'LEFT_WRIST_numnber_of_direction_changes' and 'RIGHT_WRIST_numnber_of_direction_changes'
+            # do for both right and left wrist
+            features['RIGHT_WRIST_NUMBER_OF_DIRECTION_CHANGES'] = calculate_direction_changes(group, 'RIGHT_WRIST_SPEED')
+            features['LEFT_WRIST_NUMBER_OF_DIRECTION_CHANGES'] = calculate_direction_changes(group, 'LEFT_WRIST_SPEED')
 
-        # 7. total trajectory error
-        #  refer to the group[object_1_trajectory_deviation] and accumilatet over the givven period of time. add to the feature dictionary aas 'TOTAL_TRAJECTORY_ERROR'
-        features['TOTAL_TRAJECTORY_ERROR'] = calculate_total_trajectory_error(group, 'object_1_trajectory_deviation')
+            # 3. ratet of direction changes (per second)
+            # get the RIGHT_WRIST_JERK column and get the zero crossings. divide by the total time of the video. add to features dictionary. 'RIGHT_WRIST_rate_of_direction_changes' and 'LEFT_WRIST_rate_of_direction_changes' and 'RIGHT_WRIST_rate_of_direction_changes'
+            features['RIGHT_WRIST_RATE_OF_DIRECTION_CHANGES'] = calculate_direction_changes_rate(group, 'RIGHT_WRIST_SPEED', frame_rate)
+            features['LEFT_WRIST_RATE_OF_DIRECTION_CHANGES'] = calculate_direction_changes_rate(group, 'LEFT_WRIST_SPEED', frame_rate)
+
+            # 4. completion time
+            # get the completion time by refering to the number of frames (number of rows) and the frame rate
+            features['COMPLETION_TIME'] = calculate_completion_time(group, frame_rate)
+
+            # 5. peak speed/ AVG speed/ std/ q1,q2,q3/ time to peak velocity
+            # get the RIGHT_WRIST_SPEED column and get the max speed, avg speed, std, q1,q2,q3, time to peak velocity measaures and update the features dictionary.
+            #  do for both right and left wrist
+            # Calculate speed metrics for right and left wrists
+            metrics_right = calculate_speed_metrics(group, 'RIGHT_WRIST_SPEED', frame_rate)
+            metrics_left = calculate_speed_metrics(group, 'LEFT_WRIST_SPEED', frame_rate)
+
+            # Unpack metrics into features dictionary
+            (features['RIGHT_WRIST_MAX_SPEED'], features['RIGHT_WRIST_AVG_SPEED'], features['RIGHT_WRIST_STD_SPEED'],
+             features['RIGHT_WRIST_Q1_SPEED'], features['RIGHT_WRIST_Q2_SPEED'], features['RIGHT_WRIST_Q3_SPEED'],
+             features['RIGHT_WRIST_TIME_TO_PEAK_VELOCITY']) = metrics_right
+
+            (features['LEFT_WRIST_MAX_SPEED'], features['LEFT_WRIST_AVG_SPEED'], features['LEFT_WRIST_STD_SPEED'],
+             features['LEFT_WRIST_Q1_SPEED'], features['LEFT_WRIST_Q2_SPEED'], features['LEFT_WRIST_Q3_SPEED'],
+             features['LEFT_WRIST_TIME_TO_PEAK_VELOCITY']) = metrics_left
 
 
-        video_features.append(features)
+            #  6. total traversed distance
+            # refer to the 'RIGHT_WRIST_SPEED' column aand referring too the frame rate get the distaance. get the toal traveresed idstnaace over the time.
+            # add to the feature dictionary as 'RIGHT_WRIST_TOTAL_TRAVERSED_DISTANCE'
+            features['RIGHT_WRIST_TOTAL_TRAVERSED_DISTANCE'] = calculate_total_traversed_distance(group,'RIGHT_WRIST_SPEED',frame_rate)
+            features['LEFT_WRIST_TOTAL_TRAVERSED_DISTANCE'] = calculate_total_traversed_distance(group,'LEFT_WRIST_SPEED',frame_rate)
+
+            # 7. total trajectory error
+            #  refer to the group[object_1_trajectory_deviation] and accumilatet over the givven period of time. add to the feature dictionary aas 'TOTAL_TRAJECTORY_ERROR'
+            features['TOTAL_TRAJECTORY_ERROR'] = calculate_total_trajectory_error(group, 'object_1_trajectory_deviation')
+
+
+            video_features.append(features)
+        except Exception as e:
+            # Log the error with recording_id and frame_coordinate_id
+            print( f"Error calculating features for recording_id {recording_id}, frame_coordinate_id {frame_coordinate_id}: {str(e)}")
 
     # Convert the list of high-level features to a DataFrame
     features_df = pd.DataFrame(video_features)
@@ -355,6 +393,9 @@ def save_features_to_database(features_df, db_util):
             row['LEFT_WRIST_Q3_SPEED'], row['RIGHT_WRIST_TOTAL_TRAVERSED_DISTANCE'],
             row['LEFT_WRIST_TOTAL_TRAVERSED_DISTANCE'], row['TOTAL_TRAJECTORY_ERROR']
         )
+
+        # in data tuple if there are any NaN values, empty strings "" , replace them with None
+        data_tuple = tuple(None if pd.isnull(value) or value == "" else value for value in data_tuple)
 
         # Use the insert_data method of db_util to insert the data
         db_util.insert_data(insert_query, data_tuple)

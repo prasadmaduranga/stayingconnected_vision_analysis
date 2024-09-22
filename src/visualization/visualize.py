@@ -455,12 +455,12 @@ def visualise_box_plot(graphs):
 #     plt.show()
 
 
-def visualize_data_polar_coordinates(graphs):
+def visualize_data_polar_coordinates(graphs, save_path='plots/polar_plot.png'):
     num_graphs = len(graphs)
     cols = 4  # Number of columns (for four fingers)
     rows = (num_graphs + cols - 1) // cols  # Calculate the number of rows needed
 
-    plt.figure(figsize=(10 * cols, 6 * rows))  # Adjust the figure size to fit the number of subplots
+    plt.figure(figsize=(12 * cols, 8 * rows))  # Adjust the figure size to fit the number of subplots
 
     for i, graph in enumerate(graphs):
         # Set up the title for the group of four graphs
@@ -468,7 +468,7 @@ def visualize_data_polar_coordinates(graphs):
             task_id = graph['params'][0]['recording_id']
             session_number = graph['params'][0]['recording_id']
             participant = graph['params'][0]['participant']
-            plt.suptitle(f'Task ID: {task_id}, Session Number: {session_number}, Participant: {participant}', y=1.02, fontsize=16)
+            plt.suptitle(f'Task ID: {task_id}, Session Number: {session_number}, Participant: {participant}', y=1.02, fontsize=20)
 
         for j, param in enumerate(graph['params']):
             ax = plt.subplot(rows, cols, i * cols + j + 1, projection='polar')  # Set up polar plot
@@ -512,6 +512,8 @@ def visualize_data_polar_coordinates(graphs):
             ax.set_ylabel('Radius')
             ax.legend()
 
+    if save_path:
+        plt.savefig(save_path, format='png', dpi=300)
     plt.tight_layout(rect=[0, 0, 1, 0.96])  # Adjust the layout to fit the title
     plt.show()
 

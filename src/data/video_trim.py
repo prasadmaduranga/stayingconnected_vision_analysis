@@ -3,9 +3,19 @@ import os
 import pandas as pd
 
 def time_to_seconds(time_str):
-    """Convert time format 'mm:ss:cs' to seconds."""
-    hours,minutes, seconds, centiseconds = map(int, time_str.split(':'))
-    return minutes * 60 + seconds + centiseconds / 100
+    """Convert time format 'hh:mm:ss' or 'mm:ss:cs' to seconds."""
+    time_parts = list(map(int, time_str.split(':')))
+
+    # Check if the format is 'mm:ss:cs' (3 parts) or 'hh:mm:ss' (4 parts)
+    if len(time_parts) == 3:
+        hours = 0
+        minutes, seconds, centiseconds = time_parts
+    elif len(time_parts) == 4:
+        hours, minutes, seconds, centiseconds = time_parts
+    else:
+        raise ValueError("Time format not recognized. Use 'hh:mm:ss' or 'mm:ss:cs'.")
+
+    return hours * 3600 + minutes * 60 + seconds + centiseconds / 100
 
 def trim_video(input_file, start_time, end_time, output_file=None, output_folder='trimmed_videos'):
     # Ensure output directory exists
@@ -43,30 +53,39 @@ def main():
     sheet_name = 'task_timing_info'
 
     # Read data from Excel
-    df = pd.read_excel(meta_data_file_path, sheet_name=sheet_name,skiprows=1,dtype=str)
+    df = pd.read_excel(meta_data_file_path, sheet_name=sheet_name,skiprows=0,dtype=str)
 
     # Paths
     input_path = '../../data/raw/zoom_recordings'
     output_path = '../../data/raw/task_recordings'
 
+    updated = False
     # Iterate over each row in the DataFrame
     for index, row in df.iterrows():
-        participant_id = row['participant_id'] # Participant ID ['7001', '7002', '7003']
-        assessment_id = row['assessment_id'] # [ 'E1','S1', 'P1','P2']
-        task_id = row['task_id'] # Task ID ['DW':'Drinking Water', 'FPT':'Finger pointing task', 'OHA_L1','OHA_L2','OHA_L3' : 'Object hit ad avoid','FT' :'Finger Tracing']
-        hand = row['hand'] # Hand ['left', 'right']
-        start_time = row['start_time']
-        end_time = row['end_time']
-        video_file = row['video_file']
-        saved_file_name = row['output_file']
+        if pd.isna(row['trimmed']) or row['trimmed'].strip() == '':
+            participant_id = row['participant_id'] # Participant ID ['7001', '7002', '7003']
+            assessment_id = row['assessment_id'] # [ 'E1','S1', 'P1','P2']
+            task_id = row['task_id'] # Task ID ['DW':'Drinking Water', 'FPT':'Finger pointing task', 'OHA_L1','OHA_L2','OHA_L3' : 'Object hit ad avoid','FT' :'Finger Tracing']
+            hand = row['hand'] # Hand ['left', 'right']
+            start_time = row['start_time']
+            end_time = row['end_time']
+            video_file = row['video_file']
+            saved_file_name = row['output_file']
 
-        input_video = os.path.join(input_path, video_file)
-        output_video_name = f"{participant_id}_{assessment_id}_{task_id}_{hand}.mp4"
+            input_video = os.path.join(input_path, video_file)
+            output_video_name = f"{participant_id}_{assessment_id}_{task_id}_{hand}.mp4"
 
-        # Trim the video
-        if pd.isna(saved_file_name) or saved_file_name.strip() == '':
-            result_path = trim_video(input_video, start_time, end_time, output_video_name, output_path)
-            print(f"Trimmed video saved to {result_path}")
+            # Trim the video
+            if pd.isna(saved_file_name) or saved_file_name.strip() == '':
+                result_path = trim_video(input_video, start_time, end_time, output_video_name, output_path)
+                print(f"Trimmed video saved to {result_path}")
 
+            # Update the trimmed column
+            df.at[index, 'trimmed'] = '1'
+            df.at[index, 'output_file'] = output_video_name
+            updated = True
+    if updated:
+            df.to_excel(meta_data_file_path, sheet_name=sheet_name, index=False)
+            print(f"Updated Excel sheet saved to {meta_data_file_path}")
 if __name__ == "__main__":
     main()

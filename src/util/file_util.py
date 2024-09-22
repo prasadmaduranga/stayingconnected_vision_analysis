@@ -50,3 +50,34 @@ def read_feature_file(frame_coordinate_id=None, recording_id=None):
     else:
         print("File not found for the given identifiers.")
         return None
+
+def get_recording_metadata(recording_ids):
+    db_util = DatabaseUtil()
+
+    metadata = {}
+    for recording_id in recording_ids:
+        query = """
+            SELECT r.id AS recording_id, u.id AS user_id, u.affected_hand, u.non_affected_hand,
+                   s.session_number, r.task, r.hand
+            FROM recording r
+            JOIN session s ON r.session_id = s.id
+            JOIN [user] u ON s.user_id = u.id
+            WHERE r.id = ?
+        """
+        params = (recording_id,)
+        result = db_util.fetch_data(query, params)
+
+        if result:
+            row = result[0]
+            metadata[recording_id] = {
+                "user": {
+                    "user_id": row.user_id,
+                    "affected_hand": row.affected_hand,
+                    "unaffected_hand": row.non_affected_hand
+                },
+                "session_number": row.session_number,
+                "task": row.task,
+                "hand": row.hand # affected or unaffected or bilateral
+            }
+
+    return metadata

@@ -210,14 +210,14 @@ if __name__ == "__main__":
     # Experiment 3:
     # all users , DW, , efffeced,unefffeced
     # visualise_profile([3263, 3252,3220,3228,3236])
-    visualise_profile([ 3252,3251])
+    visualise_profile([ 4389])
     # visualise_profile([3263,3262, 3252,3251, 3220,3219, 3228,3229,3236,3235])
 
     # read_recording_metadata([1062, 1063, 1065])
     #
     # visualise_profile([2177,2173,2175])
     # visualise_profile([2172, 2173])
-    # visualise_profile_finger_movement_density_analysis([1063,1062]) # only for finger movement activities
+    # visualise_profile_finger_movement_density_analysis([4279]) # only for finger movement activities
 
     # visualise_profile_wavelet_analysis([1062, 1063, 2128])
 

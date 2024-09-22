@@ -18,16 +18,7 @@ def load_video_recording_info(file_path):
 
     return df
 
-# # Update the session table and return the session_id
-# def update_session(db_util, session_type, session_number, user_id):
-#     query = """
-#     INSERT INTO VisionAnalysis.dbo.[session] (session_type, session_number, user_id)
-#     OUTPUT INSERTED.id
-#     VALUES (?, ?, ?);
-#     """
-#     params = (session_type, session_number, user_id)
-#     session_id = db_util.insert_data(query, params, return_id=True)
-#     return session_id
+
 
 def update_session(db_util, session_type, session_number, user_id):
     # Check if the record already exists
@@ -103,6 +94,8 @@ if __name__ == '__main__':
             successful_rows.append(index)  # Track this row as successfully processed
         except Exception as e:
             print(f"Error processing row {index}: {e}")
+
+
 
     # Update the 'completed' column for successful rows
     for idx in successful_rows:

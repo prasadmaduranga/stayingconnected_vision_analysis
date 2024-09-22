@@ -271,6 +271,8 @@ def gendata(data_path, filename, desired_fps=10):
                 pose_landmarks = serialize_landmarks(results.pose_landmarks, left_hand_landmarks, right_hand_landmarks)
                 # if pose_landmarks is None: then appen none to all_pose_landmarks ,all_object_detections_1,all_object_detections_2 and continue
                 if pose_landmarks is None or len(pose_landmarks) == 0:
+                    # Skip the leaading empty frames without faces if any
+
                     all_pose_landmarks.append([None])
                     all_object_detections_1.append([None])
                     all_object_detections_2.append([None])

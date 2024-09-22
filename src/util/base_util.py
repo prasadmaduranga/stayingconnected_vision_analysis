@@ -1,6 +1,6 @@
 import cv2
 import mediapipe as mp
-
+import logging
 
 def blur_face_in_image(input_image_path, output_image_path, padding=0.2):
     # Load the image
@@ -42,8 +42,18 @@ def blur_face_in_image(input_image_path, output_image_path, padding=0.2):
     # Save the new image
     cv2.imwrite(output_image_path, image)
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Example usage
-input_image_path = "data/face3.png"  # Replace with your image path
-output_image_path = "data/blurred_face3.png"  # Replace with the desired output path
+def log_error(function_name, message):
+    logging.error(f"Error in {function_name}: {message}")
+#
+# # Example usage
+
+# output_image_path = "P7001_affected_annotated.png"
+# output_image_path = "P7001_unaffected_annotated.png"
+# output_image_path = "P7002_affected_annotated.png"
+# output_image_path = "P7002_unaffected_annotated.png"
+
+input_image_path = "P7001_unaffected_annotated.png"  # Replace with your image path
+output_image_path = "data/blurred_P7001_unaffected_annotated.png"  # Replace with the desired output path
 blur_face_in_image(input_image_path, output_image_path, padding=0.3)

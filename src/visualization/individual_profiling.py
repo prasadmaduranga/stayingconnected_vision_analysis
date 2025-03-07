@@ -67,8 +67,10 @@ def visualise_profile(recording_ids,draw_wavelts=True):
 
 
     # ***** visualise features of the video in separate graphs *****
-    features = ['WRIST_SPEED', 'GRIP_APERTURE', 'ELBOW_SPEED', 'WRIST_FLEXION_EXTENSION_ANGLE', 'ELBOW_FLEXION_ANGLE',
-                'SHOULDER_ABDUCTION_ANGLE']
+    # features = ['WRIST_SPEED', 'GRIP_APERTURE', 'ELBOW_SPEED', 'WRIST_FLEXION_EXTENSION_ANGLE', 'ELBOW_FLEXION_ANGLE',
+    #             'SHOULDER_ABDUCTION_ANGLE']
+
+    features = ['WRIST_SPEED']
     # features = ['WRIST_SPEED']
     # hey value dictionary , key is the feature and value is the window_size for that feature
     feature_window_size = {
@@ -86,9 +88,10 @@ def visualise_profile(recording_ids,draw_wavelts=True):
         graph_config = {
             'params': [],
             'window_size': feature_window_size[feature],
-            'xlabel': 'Sequence Number',
+            'xlabel': 'Frame Number',
             'ylabel': feature.replace('_', ' ').title(),
-            'title': f'{feature.replace("_", " ").title()} Profile'
+            # 'title': f'{feature.replace("_", " ").title()} Profile'
+            'title': f' '
         }
 
         # Add parameters for each recording_id
@@ -97,7 +100,8 @@ def visualise_profile(recording_ids,draw_wavelts=True):
             if metadata['hand'] == 'affected' or metadata['hand'] == 'unaffected':
                 performing_hand = metadata['user']['affected_hand'].upper() if metadata['hand'] == 'affected' else \
                 metadata['user']['unaffected_hand'].upper()
-                label = f"{metadata['user']['user_id']}_{metadata['session_number']}_{metadata['task']}_{performing_hand.lower()}_{metadata['hand']}"
+                # label = f"{metadata['user']['user_id']}_{metadata['session_number']}_{metadata['task']}_{performing_hand.lower()}_{metadata['hand']}"
+                label = f"{metadata['user']['user_id']}_{performing_hand.lower()}_hand_{metadata['hand']}"
                 graph_config['params'].append({
                     'recording_id': recording_id,
                     'feature': f'{performing_hand}_{feature}',
@@ -190,6 +194,16 @@ if __name__ == "__main__":
     # Experiment 1:
     # 7001 , DW, , efffeced
     # visualise_profile([3263,3262])
+    # 7002 E1 Aff vs unaffected ()
+
+    # 7001 P2 Aff vs unaffected (3211,3210)
+    # 7001 E1 Aff vs unaffected (3263,3262)
+    # visualise_profile([3211,3210])
+    visualise_profile([3263,3262])
+
+    # 7002 E1 Aff vs unaffected (3252,3251)
+    # 7002 S1 Aff vs unaffected (3261,3260)
+    # visualise_profile([3252,3251])
 
     # T&CI600
     # Experiment 2:
@@ -210,15 +224,19 @@ if __name__ == "__main__":
     # Experiment 3:
     # all users , DW, , efffeced,unefffeced
     # visualise_profile([3263, 3252,3220,3228,3236])
-    visualise_profile([ 4389])
+    # visualise_profile([ 4389])
     # visualise_profile([3263,3262, 3252,3251, 3220,3219, 3228,3229,3236,3235])
+    # visualise_profile([3263, 3262, 3252, 3251,4330,4331,3220,3219, 3228,3229,4379,4378,4409,4385,4421,4420,4425,4424])
+
 
     # read_recording_metadata([1062, 1063, 1065])
     #
     # visualise_profile([2177,2173,2175])
     # visualise_profile([2172, 2173])
-    # visualise_profile_finger_movement_density_analysis([4279]) # only for finger movement activities
-
+#  visualise_profile_finger_movement_density_analysis([3228]) # only for finger movement activities
+    # 7002 E1 ([3252, 3251])
+    # 7001 E1 ([3263, 3262])
+    # 7103 E1 ([3228, 3229])  this is for 7102 = 7103
     # visualise_profile_wavelet_analysis([1062, 1063, 2128])
 
 

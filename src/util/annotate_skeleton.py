@@ -10,7 +10,7 @@ mp_drawing = mp.solutions.drawing_utils
 # image_path = "P7001_affected.png"
 # image_path = "P7001_unaffected.png"
 # image_path = "P7002_affected.png"
-image_path = "P7002_unaffected.png"
+image_path = "data/backup_images/P7002_unaffected.png"
 
 image = cv2.imread(image_path)
 
@@ -41,7 +41,7 @@ output_image_path = "P7001_affected.jpg"
 # output_image_path = "P7001_affected_annotated.png"
 # output_image_path = "P7001_unaffected_annotated.png"
 # output_image_path = "P7002_affected_annotated.png"
-output_image_path = "P7002_unaffected_annotated.png"
+output_image_path = "data/backup_images/P7002_unaffected_annotated.png"
 cv2.imwrite(output_image_path, image)
 
 # Optionally, display the result

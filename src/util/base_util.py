@@ -26,9 +26,9 @@ def blur_face_in_image(input_image_path, output_image_path, padding=0.2):
 
             # Increase the bounding box by padding factor
             x1 = max(0, int(x - padding * w))
-            y1 = max(0, int(y - padding * h))
+            y1 = max(0, int(y))
             x2 = min(iw, int(x + w + padding * w))
-            y2 = min(ih, int(y + h + padding * h))
+            y2 = min(ih, int(y + h/3 + padding * h))
 
             # Extract the face area with padding
             face = image[y1:y2, x1:x2]
@@ -49,11 +49,11 @@ def log_error(function_name, message):
 #
 # # Example usage
 
-# output_image_path = "P7001_affected_annotated.png"
+# output_image_path = "P7001_affected_annoccddtated.png"
 # output_image_path = "P7001_unaffected_annotated.png"
 # output_image_path = "P7002_affected_annotated.png"
 # output_image_path = "P7002_unaffected_annotated.png"
 
-input_image_path = "P7001_unaffected_annotated.png"  # Replace with your image path
-output_image_path = "data/blurred_P7001_unaffected_annotated.png"  # Replace with the desired output path
-blur_face_in_image(input_image_path, output_image_path, padding=0.3)
+input_image_path = "data/faceimages/grasp_8_full.png"  # Replace with your image path
+output_image_path = "data/faceimages/grasp_8_full_blurred.png"  # Replace with the desired output path
+blur_face_in_image(input_image_path, output_image_path, padding=0.1)

@@ -5,6 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import pywt
+import os
 from scipy.fft import fft, fftfreq
 sys.path.append('../')
 from util import read_feature_file
@@ -79,10 +80,13 @@ def wrap_labels(labels, width=10):
     return ['\n'.join(textwrap.wrap(label, width)) for label in labels]
 
 def visualize_data(graphs, distribution_boxplots=False):
+    plt.rcParams['font.family'] = 'Times New Roman'
+    plt.rcParams['font.size'] = 32
+
     num_graphs = len(graphs)
     cols = 2 if distribution_boxplots else 1
 
-    plt.figure(figsize=(10 * cols, 6 * num_graphs))
+    plt.figure(figsize=(12 * cols, 8.5 * num_graphs))
 
     participants = list(set(param.get('participant', '') for graph in graphs for param in graph['params']))
     colors = plt.cm.tab20(np.linspace(0, 1, len(participants)))
@@ -134,6 +138,7 @@ def visualize_data(graphs, distribution_boxplots=False):
         plt.xlabel(graph.get('xlabel', 'Frame Sequence Number'))
         plt.ylabel(graph.get('ylabel', 'Value'))
         plt.title(graph.get('title', 'Data Visualization'))
+        graph_title = f"{feature} - {recording_id}"
         plt.legend(loc='upper right', bbox_to_anchor=(1.1, 1.05))
 
         if distribution_boxplots:
@@ -168,6 +173,7 @@ def visualize_data(graphs, distribution_boxplots=False):
             wrapped_labels = wrap_labels(labels, width=20)
             bp = plt.boxplot(data_list, labels=wrapped_labels, vert=True, patch_artist=True, showmeans=True,
                              boxprops={'alpha': 0.5, 'zorder': 0})
+            # plt.xticks(rotation=90)
 
 
             for box, color in zip(bp['boxes'], colors_list):
@@ -182,6 +188,11 @@ def visualize_data(graphs, distribution_boxplots=False):
             plt.ylabel(f'{graph.get("ylabel", "Values")}')
 
     plt.tight_layout()
+    download_folder = os.path.expanduser("~/Downloads")
+    file_name = f'{graph_title}.png'
+    file_path = os.path.join(download_folder, file_name)
+    plt.savefig(file_path, format='png', dpi=300)
+
     plt.show()
 
 
@@ -227,6 +238,7 @@ def draw_fourier_transform(graphs):
 
     plt.tight_layout()
     plt.show()
+
 #
 
 
@@ -272,13 +284,20 @@ def draw_wavelet_transform(graphs):
             coefficients, frequencies = pywt.cwt(signal_array, scales, wavelet, 1.0 / 30.0)  # Assuming 30 fps as sampling rate
 
             # Plotting the wavelet transform
-            cax = ax.imshow(np.abs(coefficients), extent=[0, len(signal_array), frequencies.min(), frequencies.max()], cmap='jet', aspect='auto', interpolation='nearest')
-            ax.set_xlabel('Time')
+            signal_length_in_seconds = len(signal_array) / 10.0
+            cax = ax.imshow(np.abs(coefficients),  extent=[0, signal_length_in_seconds, frequencies.min(), frequencies.max()], cmap='jet', aspect='auto', interpolation='nearest')
+            ax.set_xlabel('Time(seconds)')
             ax.set_ylabel('Frequency (Hz)')
-            ax.set_title(f'{feature} - {title}')
+            # ax.set_title(f'{feature} - {title}')
 
             # Add colorbar to each subplot
             fig.colorbar(cax, ax=ax, orientation='vertical', label='Magnitude')
+
+            graph_title = f"Wavelet - {feature} - {recording_id}"
+            file_name = f'{graph_title}.png'
+            download_folder = os.path.expanduser("~/Downloads")
+            file_path = os.path.join(download_folder, file_name)
+            fig.savefig(file_path, format='png', dpi=300)
 
     # Hide any unused subplots
     for k in range(num_graphs, len(axes)):
@@ -391,76 +410,16 @@ def visualise_box_plot(graphs):
 
     plt.tight_layout()
     plt.show()
-#
-# def visualize_data_polar_coordinates(graphs):
-#     plt.figure(figsize=(10, 6 * len(graphs)))
-#
-#     for i, graph in enumerate(graphs, start=1):
-#         ax = plt.subplot(len(graphs), 1, i, projection='polar')  # Set up polar plot
-#
-#         for param in graph['params']:
-#             participant = ""
-#             recording_id = param['recording_id']
-#             hand = param['hand']
-#             finger = param['finger']
-#             if param['participant'] is not None:
-#                 participant = param['participant']
-#
-#             data = read_feature_file(recording_id=[recording_id])
-#
-#             if data is None or data.empty:
-#                 print(f"No data found for recording_id={recording_id}.")
-#                 continue
-#
-#             # Construct dynamic feature names based on hand and finger
-#             ratio_feature = f"{hand}_{finger}_RATIO_MCP_TIP_DISTAL"
-#             angle_feature1 = f"{hand}_{finger}_ANGLE_WRIST_MCP_PIP"
-#             angle_feature2 = f"{hand}_{finger}_ANGLE_MCP_PIP_DIP"
-#             angle_feature3 = f"{hand}_{finger}_ANGLE_PIP_DIP_TIP"
-#             angle_wrist_mcp_tip = f"{hand}_{finger}_ANGLE_WRIST_MCP_TIP"
-#
-#
-#             # angle_feature1 = f"{hand}_{finger}_FINGER_ANGLE_MCP_PIP_DIP"
-#             # angle_feature2 = f"{hand}_{finger}_FINGER_ANGLE_WRIST_MCP_TIP"
-#             # angle_feature3 = f"{hand}_{finger}_FINGER_ANGLE_WRIST_MCP_TIP"
-#             # LEFT_INDEX_FINGER_ANGLE_WRIST_MCP_TIP
-#             #    LEFT_INDEX_FINGER_ANGLE_WRIST_MCP_PIP
-#             #     LEFT_INDEX_FINGER_ANGLE_MCP_PIP_DIP
-#             #     LEFT_INDEX_FINGER_ANGLE_PIP_DIP_TIP
-#             #     LEFT_INDEX_FINGER_ANGLE_WRIST_MCP_TIP
-#
-#             if not all(feature in data.columns for feature in [ratio_feature, angle_feature1, angle_feature2]):
-#                 print(f"Required features not found in the dataset for recording_id={recording_id}.")
-#                 continue
-#
-#             # Compute the theta as the sum of angles
-#             # data['theta'] = data[angle_feature1] + data[angle_feature2] + data[angle_feature3]
-#             data['theta'] = data[angle_wrist_mcp_tip] # Normalize to 0-360 degrees
-#
-#             # Interpolate missing values and remove outliers
-#             data[ratio_feature] = remove_outliers_and_interpolate(data[ratio_feature])
-#             data['theta'] = remove_outliers_and_interpolate(data['theta'])
-#             # Convert degrees to radians for plotting
-#             data['theta'] = np.deg2rad(data['theta'])
-#
-#             # Plot
-#             ax.scatter(data['theta'], data[ratio_feature], label=f'{hand}_{finger}_{participant}', s=12,alpha=0.7)
-#
-#         ax.set_title(graph.get('title', 'Polar Plot Visualization'))
-#         ax.set_xlabel('Theta (radians)')
-#         ax.set_ylabel('Radius')
-#         ax.legend()
-#
-#     plt.tight_layout()
-#     plt.show()
 
 
 def visualize_data_polar_coordinates(graphs, save_path='plots/polar_plot.png'):
+    plt.rcParams['font.family'] = 'Times New Roman'
+    plt.rcParams['font.size'] = 18
     num_graphs = len(graphs)
     cols = 4  # Number of columns (for four fingers)
     rows = (num_graphs + cols - 1) // cols  # Calculate the number of rows needed
 
-    plt.figure(figsize=(12 * cols, 8 * rows))  # Adjust the figure size to fit the number of subplots
+    plt.figure(figsize=(10 * cols, 8 * rows))  # Adjust the figure size to fit the number of subplots
 
     for i, graph in enumerate(graphs):
         # Set up the title for the group of four graphs
@@ -468,7 +427,7 @@ def visualize_data_polar_coordinates(graphs, save_path='plots/polar_plot.png'):
             task_id = graph['params'][0]['recording_id']
             session_number = graph['params'][0]['recording_id']
             participant = graph['params'][0]['participant']
-            plt.suptitle(f'Task ID: {task_id}, Session Number: {session_number}, Participant: {participant}', y=1.02, fontsize=20)
+            # plt.suptitle(f'Task ID: {task_id}, Session Number: {session_number}, Participant: {participant}', y=1.02, fontsize=20)
 
         for j, param in enumerate(graph['params']):
             ax = plt.subplot(rows, cols, i * cols + j + 1, projection='polar')  # Set up polar plot
@@ -505,15 +464,24 @@ def visualize_data_polar_coordinates(graphs, save_path='plots/polar_plot.png'):
             data['theta'] = np.deg2rad(data['theta'])
 
             # Plot
-            ax.scatter(data['theta'], data[ratio_feature], label=f'{hand}_{finger}_{participant}', s=12, alpha=0.7)
+            # ax.scatter(data['theta'], data[ratio_feature], label=f'{hand}_{finger}_{participant}', s=12, alpha=0.7)
+            ax.scatter(data['theta'], data[ratio_feature], label=f'{finger}', s=50, alpha=0.7)
 
-            ax.set_title(f'{hand}_{finger}', fontsize=10)
-            ax.set_xlabel('Theta (radians)')
-            ax.set_ylabel('Radius')
-            ax.legend()
+            # ax.set_title(f'{hand}_{finger}', fontsize=10)
+            # ax.set_title(f' ', fontsize=14)
+            ax.set_xlabel('Theta (radians)',  fontsize=30)
+            ax.set_ylabel('Radius', fontsize=30, labelpad=26)
+            ax.legend(fontsize=18)
 
-    if save_path:
-        plt.savefig(save_path, format='png', dpi=300)
+    user_id = graph['params'][0]['participant']
+    recording_id = graph['params'][0]['recording_id']
+    hand = graph['params'][0]['hand']
+    file_name = f'figuredensity_polare_{user_id}_{recording_id}_{hand}.png'
+    download_folder = os.path.expanduser("~/Downloads")
+    save_path = os.path.join(download_folder, file_name)
+    plt.subplots_adjust(wspace=0.1, hspace=0.3)
+    plt.savefig(save_path, format='png', dpi=300)
+
     plt.tight_layout(rect=[0, 0, 1, 0.96])  # Adjust the layout to fit the title
     plt.show()
 
@@ -1580,7 +1548,160 @@ def print_kinematic_stats(metaData):
 
 # userid_assessmentid_taskid_affected
 
+def visualise_likert_scale_graphs():
+    import numpy as np
+    import matplotlib.pyplot as plt
 
+    plt.rcParams["font.family"] = "Times New Roman"
+
+    # Updated Data
+    data = {
+        "ADLs": {
+            "Healthy": [9.5, 33.3, 50.0, 7.1],
+            "Stroke": [22.9, 20.0, 21.4, 35.7]
+        },
+        "IADLs": {
+            "Healthy": [31.8, 29.6, 29.6, 9.1],
+            "Stroke": [32.5, 27.7, 20.5, 19.3]
+        },
+        "Rest and Sleep": {
+            "Healthy": [9.4, 34.0, 41.5, 15.1],
+            "Stroke": [15.0, 23.5, 51.3, 10.2]
+        },
+        "Education": {
+            "Healthy": [28.6, 14.3, 14.3, 42.9],
+            "Stroke": [55.6, 33.3, 0.0, 11.1]
+        },
+        "Healthcare": {
+            "Healthy": [0.0, 0.0, 0.0, 100.0],
+            "Stroke": [16.7, 0.0, 33.3, 50.0]
+        },
+        "Work": {
+            "Healthy": [39.0, 12.7, 18.6, 29.7],
+            "Stroke": [64.8, 16.7, 5.6, 13.0]
+        },
+        "Play": {
+            "Healthy": [75.0, 0.0, 25.0, 0.0],
+            "Stroke": [20.0, 30.0, 20.0, 30.0]
+        },
+        "Leisure": {
+            "Healthy": [15.7, 24.3, 41.4, 18.6],
+            "Stroke": [24.5, 24.5, 35.9, 15.1]
+        },
+        "Social Participation": {
+            "Healthy": [28.1, 40.6, 21.9, 9.4],
+            "Stroke": [45.5, 36.4, 18.2, 0.0]
+        }
+    }
+
+    categories = list(data.keys())
+    n_groups = len(categories)
+    x = np.arange(n_groups)
+
+    # Define color schemes based on the provided image
+    healthy_colors = ['#5A9BD4', '#A8C4E4', '#D0E1F2', '#F3F7FC']  # Blue shades
+    stroke_colors = ['#E3745B', '#F4A095', '#F9C8B8', '#FDE5E2']  # Red shades
+
+    fig, ax = plt.subplots(figsize=(10, 6), constrained_layout=True)
+
+    # Plot the bars with a gap between Healthy and Stroke
+    bar_width = 0.35
+    gap = 0.05  # Space between Healthy and Stroke bars
+    bottom_healthy = np.zeros(n_groups)
+    bottom_stroke = np.zeros(n_groups)
+
+    y_pos = np.arange(n_groups)
+
+    for i in range(4):  # Assuming four subcategories per group
+        healthy_bars = ax.barh(y_pos - (bar_width + gap) / 2, [data[cat]['Healthy'][i] for cat in categories],
+                               height=bar_width,
+                               color=healthy_colors[i], left=bottom_healthy)
+        stroke_bars = ax.barh(y_pos + (bar_width + gap) / 2, [data[cat]['Stroke'][i] for cat in categories],
+                              height=bar_width,
+                              color=stroke_colors[i], left=bottom_stroke)
+
+        for j, (bar_h, bar_s) in enumerate(zip(healthy_bars, stroke_bars)):
+            if data[categories[j]]['Healthy'][i] != 0:
+                ax.text(bar_h.get_x() + bar_h.get_width() / 2, bar_h.get_y() + bar_h.get_height() / 2,
+                        f"{data[categories[j]]['Healthy'][i]:.1f}%",
+                        ha='center', va='center', color='black')
+            if data[categories[j]]['Stroke'][i] != 0:
+                ax.text(bar_s.get_x() + bar_s.get_width() / 2, bar_s.get_y() + bar_s.get_height() / 2,
+                        f"{data[categories[j]]['Stroke'][i]:.1f}%",
+                        ha='center', va='center', color='black')
+
+        bottom_healthy += np.array([data[cat]['Healthy'][i] for cat in categories])
+        bottom_stroke += np.array([data[cat]['Stroke'][i] for cat in categories])
+
+    # Labels and legend
+    ax.set_yticks(y_pos)
+    ax.set_yticklabels(categories)
+    ax.set_xlabel("Values")
+    ax.set_ylabel("Activity Type")
+    # ax.set_title("Stacked Bar Chart of Activities with Gaps and Labels")
+
+    # Add legend outside the plot
+    legend_labels = ["Flow", "Boredom", "Apathy", "Anxiety"]
+    handles = [plt.Rectangle((0, 0), 1, 1, color=color) for color in healthy_colors]
+    handles += [plt.Rectangle((0, 0), 1, 1, color=color) for color in stroke_colors]
+    labels = [f"HC group - {label}" for label in legend_labels] + [f"SS group - {label}" for label in legend_labels]
+    ax.legend(handles, labels, loc='upper left', bbox_to_anchor=(1, 1), frameon=False)
+
+    ax.invert_yaxis()  # Invert the axis
+
+    # Align right border to top edge of stacks
+    ax.set_xlim(0, max(bottom_healthy.max(), bottom_stroke.max()) * 1.1)
+
+    plt.show()
+
+def visualiise_frequency_distribution():
+    # Data
+    data = {
+        "Activities of Daily Living (ADLs)": {"Healthy": 10.12, "Stroke": 13.01},
+        "Instrumental ADLs (IADLs)": {"Healthy": 21.2, "Stroke": 15.43},
+        "Rest and Sleep": {"Healthy": 12.77, "Stroke": 34.76},
+        "Education": {"Healthy": 1.69, "Stroke": 1.67},
+        "Healthcare": {"Healthy": 0.24, "Stroke": 1.12},
+        "Work": {"Healthy": 28.43, "Stroke": 10.04},
+        "Play": {"Healthy": 0.96, "Stroke": 1.86},
+        "Leisure": {"Healthy": 16.87, "Stroke": 19.7},
+        "Social Participation": {"Healthy": 7.71, "Stroke": 2.04}
+    }
+
+    categories = list(data.keys())
+    n_groups = len(categories)
+    x_pos = np.arange(n_groups)
+
+    # Define color schemes based on the previous case
+    healthy_color = '#5A9BD4'  # Blue
+    stroke_color = '#E3745B'  # Red
+
+    fig, ax = plt.subplots(figsize=(8, 6), constrained_layout=True)
+
+    bar_width = 0.35  # Adjust width to create separation
+
+    healthy_bars = ax.bar(x_pos - bar_width / 2, [data[cat]['Healthy'] for cat in categories], width=bar_width,
+                          color=healthy_color, label='Healthy Cohort')
+    stroke_bars = ax.bar(x_pos + bar_width / 2, [data[cat]['Stroke'] for cat in categories], width=bar_width,
+                         color=stroke_color, label='Stroke Survivors')
+
+    # Display values in each segment
+    for bar in healthy_bars:
+        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1, f'{bar.get_height():.1f}%',
+                ha='center', va='bottom', color='black')
+    for bar in stroke_bars:
+        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1, f'{bar.get_height():.1f}%',
+                ha='center', va='bottom', color='black')
+
+    # Labels and legend
+    ax.set_xticks(x_pos)
+    ax.set_xticklabels(categories, rotation=45, ha='right')
+    ax.set_ylabel("Frequency (%)")
+    ax.set_xlabel("Activity Type")
+    # ax.set_title("Frequency Distribution of Activity Categories")
+    ax.legend(loc='upper right')
+
+    plt.show()
 
 
 if __name__ == "__main__":
@@ -1603,7 +1724,7 @@ if __name__ == "__main__":
     # visualise_elbow_flexion_angle()
     # visualise_elbow_flexion_angle_vs_speed()
     #visualise_shoulder_abduction_angle() # left shoulder, right shoulder , right elbow anggle
-    visulise_finger_density_function()
+    #visulise_finger_density_function()
     # visualise_object_speed_profile()
     # visualise_object_tracjectory_deviation()
     # visualise_hand_object_iou()
@@ -1612,6 +1733,9 @@ if __name__ == "__main__":
 
     # visualise_speed_distribution()
     # print_kinematic_stats()
+
+    visualise_likert_scale_graphs() # Likeert scalle activity categprisation
+    # visualiise_frequency_distribution()
 
 
 

@@ -1,3 +1,4 @@
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -13,6 +14,12 @@ from sklearn.feature_selection import f_classif
 import gsom
 # Import the custom utilities
 from src.util.file_util import read_feature_file, get_recording_metadata
+from sklearn.metrics import confusion_matrix
+import seaborn as sns
+from sklearn.metrics import classification_report
+import plotly.express as px
+import plotly.io as pio
+
 
 # Constants
 FEATURE_FILE_PATH = "data/time_series_features_dwt_smoothed_full_{feature_prop}.csv"
@@ -202,7 +209,7 @@ def cluster(recording_ids):
     tsne_results = tsne.fit_transform(scaled_features)
 
     # Clustering using KMeans, DBSCAN, Agglomerative Clustering
-    kmeans = KMeans(n_clusters=3, n_init=10).fit(tsne_results)  # Set n_init explicitly to suppress warning
+    kmeans = KMeans(n_clusters=2, n_init=10).fit(tsne_results)  # Set n_init explicitly to suppress warning
     dbscan = DBSCAN(eps=0.5).fit(tsne_results)
 
     # Add t-SNE results and user_id to the DataFrame
@@ -248,7 +255,10 @@ def interactive_cluster_plot(recording_ids):
 
     # Normalize the data
     features = df[[
+         # Finally slected one ***
          'detail2_coeff_std','peak_detail3','energy_detail3', 'detail3_coeff_std','approx_coeff_mean','duration_high_energy_detail2'
+
+# 'detail3_coeff_std', 'std', 'correlation_approx_detail3', 'entropy_detail2', 'entropy_approx', 'entropy_detail1', 'duration_high_energy_detail2', 'entropy_detail3'
 
         # 'mean', 'std', 'median',
         # 'approx_coeff_mean', 'approx_coeff_std',
@@ -284,6 +294,18 @@ def interactive_cluster_plot(recording_ids):
     df['tsne_1'] = tsne_results[:, 0]
     df['tsne_2'] = tsne_results[:, 1]
     df['kmeans_label'] = kmeans.labels_
+
+    # Here we assume that the true labels are in the 'hand' column (affected/unaffected)
+    # Map 'affected' as 0 and 'unaffected' as 1 for classification
+    df['true_label'] = df['hand'].map({'affected': 0, 'unaffected': 1})
+
+    # Confusion Matrix
+    true_labels = df['true_label']
+    predicted_labels = df['kmeans_label']
+    # Generate confusion matrix
+    conf_matrix = confusion_matrix(true_labels, predicted_labels)
+
+
     df['dbscan_label'] = dbscan.labels_
 
     # Convert user_id and assessment_id to string for hover display
@@ -291,8 +313,17 @@ def interactive_cluster_plot(recording_ids):
     df['task'] = df['task'].astype(str)
     df['hand'] = df['hand'].astype(str)
 
-    df['label'] =  df['user_id'] + ' ' + df['session_number']+ ' ' + df['task'].astype(str) + ' ' + df['hand']
+    # df['label'] =  df['user_id'] + ' ' + df['session_number']+ ' ' + df['task'].astype(str) + ' ' + df['hand']
+    df['label'] = df['user_id'] + ' ' + df['hand']
 
+    plt.figure(figsize=(10, 7))
+    sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=['Cluster 1', 'Cluster 2'],
+                yticklabels=['Affected', 'Unaffected'])
+    plt.xlabel('Predicted Cluster',fontsize=12)
+    plt.ylabel('True Label')
+    plt.title('Confusion Matrix for t-SNE and KMeans Clustering')
+    plt.show()
+    print(classification_report(true_labels, predicted_labels, target_names=['Affected', 'Unaffected']))
 
     # Create interactive plot using Plotly Express
     fig = px.scatter(
@@ -307,9 +338,16 @@ def interactive_cluster_plot(recording_ids):
             'task': True,  # Sho,
             'recording_id': True
         },
-        title="Interactive Clustering with Hover Info",
-        labels={'kmeans_label': 'Cluster ID'}
+        title=" ",
+        labels={'kmeans_label': 'Cluster ID','tsne_1': 't-SNE Dimension 1', 'tsne_2': 't-SNE Dimension 2'}
     )
+
+    fig.update_layout(
+        xaxis_title_font=dict(size=32),  # Increase x-axis label font size
+        yaxis_title_font=dict(size=32),  # Increase y-axis label font size
+        font=dict(family='Times New Roman', size=18)  # Set general font style and size
+    )
+
     fig.update_traces(textposition='top center')
 
     # Show the plot
@@ -500,6 +538,18 @@ def run_tsne():
 
     # Filter recordings
     recording_ids = filter_recordings(participant_ids, assessment_ids, task_ids, hand)
+    # recording_ids = ['3262','3263',
+    #                  '3251', '3252',
+    #                  '4330', '4331',
+    #                  '3219', '3220',
+    #                  '3228', '3229',
+    #                  '4385', '4409',
+    #                  '4420', '4421',
+    #                  '4424', '4425',
+    #                  '4294', '4295',
+    #                  '4318', '4319',
+    #                  '4323', '4324'
+    #                  ]
 
     # Extract features
     extract_time_series_features(recording_ids, 'WRIST_SPEED')
@@ -589,8 +639,19 @@ def correlation_analysis():
     hand = []
 
     # Filter recordings
-    recording_ids = filter_recordings(participant_ids, assessment_ids, task_ids, hand)
-
+    # recording_ids = filter_recordings(participant_ids, assessment_ids, task_ids, hand)
+    recording_ids = ['3262','3263',
+                     '3251', '3252',
+                     '4330', '4331',
+                     '3219', '3220',
+                     '3228', '3229',
+                     '4385', '4409',
+                     '4420', '4421',
+                     '4424', '4425',
+                     '4294', '4295',
+                     '4318', '4319',
+                     '4323', '4324'
+                     ]
     # Extract features
     extract_time_series_features(recording_ids, 'WRIST_SPEED')
 
@@ -740,9 +801,9 @@ def run_gsom():
 
 
 if __name__ == "__main__":
-    correlation_analysis()
+    # correlation_analysis()
     # run_PCA()
-    # run_tsne()
+    run_tsne()
     # run_gsom()
 
 
